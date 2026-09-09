@@ -3,112 +3,281 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>私募基金個人投資管理系統</title>
+  <title>Private Fund Investment Terminal</title>
+  <!-- Google Fonts: Inter 精品金融字型 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
-    body { background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-    .kpi-card { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
-    .kpi-value { font-size: 1.8rem; font-weight: 700; }
-    .table-container { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
-    .warning-expire { background-color: #ffe6e6 !important; color: #dc3545; font-weight: bold; }
+    :root {
+      --bg-dark: #0B0F19;
+      --card-bg: #151C2C;
+      --card-border: rgba(255, 255, 255, 0.07);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent-emerald: #10B981;
+      --accent-blue: #38BDF8;
+      --accent-purple: #818CF8;
+      --accent-amber: #F59E0B;
+      --accent-rose: #FB7185;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 數字等寬對齊，確保金融排版工整 */
+    .num-font {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    /* 現代深色玻璃感卡片 */
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .kpi-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-value {
+      font-size: 2.1rem;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+
+    /* 自訂精緻微光按鈕 */
+    .btn-action {
+      background: #1E293B;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      background: #334155;
+      color: #FFFFFF;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-primary-glow {
+      background: linear-gradient(135deg, #2563EB, #1D4ED8);
+      border: none;
+      box-shadow: 0 0 15px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-emerald-glow {
+      background: linear-gradient(135deg, #059669, #047857);
+      border: none;
+      box-shadow: 0 0 15px rgba(5, 150, 105, 0.35);
+    }
+
+    /* 暗色表格 */
+    .table-dark-custom {
+      --bs-table-bg: transparent;
+      --bs-table-color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .table-dark-custom th {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom-width: 1px;
+    }
+
+    .table-dark-custom td {
+      vertical-align: middle;
+      padding: 16px 12px;
+      font-size: 0.95rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* 狀態膠囊標籤 */
+    .badge-pill {
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-active {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-alert {
+      background: rgba(251, 113, 133, 0.15);
+      color: #FB7185;
+      border: 1px solid rgba(251, 113, 133, 0.3);
+      animation: pulse-alert 2s infinite;
+    }
+
+    .badge-secondary-glow {
+      background: rgba(148, 163, 184, 0.1);
+      color: #94A3B8;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    @keyframes pulse-alert {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* 彈跳視窗暗黑化 */
+    .modal-content {
+      background: #151C2C;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-radius: 18px;
+    }
+    .modal-header { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+    .form-control, .form-select {
+      background: #0B0F19;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+      border-radius: 8px;
+    }
+    .form-control:focus, .form-select:focus {
+      background: #0B0F19;
+      border-color: #38BDF8;
+      color: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
   </style>
 </head>
 <body class="py-4">
 
-<div class="container-fluid px-4">
-  <!-- 頁頭與操作按鈕 -->
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+<div class="container-fluid px-lg-5 px-3">
+  <!-- 頂部終端機風格標頭與功能按鈕 -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 gap-3">
     <div>
-      <h2 class="fw-bold text-dark mb-1">💼 私募基金個人投資儀表板</h2>
-      <span class="text-muted" id="update-date">系統載入中...</span>
+      <div class="d-flex align-items-center gap-2">
+        <h3 class="fw-bold text-white mb-0" style="letter-spacing: -0.03em;">💼 私募基金投資終端</h3>
+        <span class="badge badge-pill badge-active">實時運作中</span>
+      </div>
+      <p class="text-muted small mb-0 mt-1" id="update-date">基準時間加載中...</p>
     </div>
+    
     <div class="d-flex flex-wrap gap-2">
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddContract">➕ 新增合約</button>
-      <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAddPayout">💰 記錄領息</button>
-      <button class="btn btn-outline-secondary" onclick="exportData()">💾 匯出備份</button>
-      <button class="btn btn-outline-secondary" onclick="document.getElementById('file-import').click()">📂 匯入備份</button>
+      <button class="btn btn-action btn-primary-glow text-white" data-bs-toggle="modal" data-bs-target="#modalAddContract">＋ 新增合約</button>
+      <button class="btn btn-action btn-emerald-glow text-white" data-bs-toggle="modal" data-bs-target="#modalAddPayout">＋ 登記領息</button>
+      <button class="btn btn-action" onclick="exportData()">備份 JSON</button>
+      <button class="btn btn-action" onclick="document.getElementById('file-import').click()">還原備份</button>
       <input type="file" id="file-import" class="d-none" accept=".json" onchange="importData(event)">
-      <button class="btn btn-outline-danger btn-sm" onclick="resetToDefault()">重設預設資料</button>
+      <button class="btn btn-action text-danger" onclick="resetToDefault()">重設資料</button>
     </div>
   </div>
 
   <!-- 四大核心 KPI 卡片 -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card kpi-card bg-primary text-white p-3">
-        <div class="card-body">
-          <h6 class="text-white-50">💰 有效在約總本金</h6>
-          <div class="kpi-value" id="kpi-principal">0 萬</div>
-        </div>
+      <div class="glass-card">
+        <div class="kpi-title">總有效本金規模</div>
+        <div class="kpi-value num-font" style="color: var(--accent-blue);" id="kpi-principal">0 萬</div>
+        <div class="text-muted small mt-2">Active Capital Pool</div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card kpi-card bg-success text-white p-3">
-        <div class="card-body">
-          <h6 class="text-white-50">📈 本月預計現金流</h6>
-          <div class="kpi-value" id="kpi-cashflow">0 元</div>
-        </div>
+      <div class="glass-card">
+        <div class="kpi-title">預計每月固定收益</div>
+        <div class="kpi-value num-font" style="color: var(--accent-emerald);" id="kpi-cashflow">0 元</div>
+        <div class="text-muted small mt-2">Monthly Cashflow</div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card kpi-card bg-info text-white p-3">
-        <div class="card-body">
-          <h6 class="text-white-50">🏦 歷史累計已領息</h6>
-          <div class="kpi-value" id="kpi-interest">0 萬</div>
-        </div>
+      <div class="glass-card">
+        <div class="kpi-title">歷史累計已領盈餘</div>
+        <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
+        <div class="text-muted small mt-2">Cumulative Payouts</div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card kpi-card bg-secondary text-white p-3">
-        <div class="card-body">
-          <h6 class="text-white-50">📑 生效中合約數</h6>
-          <div class="kpi-value" id="kpi-count">0 筆</div>
-        </div>
+      <div class="glass-card">
+        <div class="kpi-title">生效中契約序號數</div>
+        <div class="kpi-value num-font" style="color: var(--accent-purple);" id="kpi-count">0 筆</div>
+        <div class="text-muted small mt-2">Active Contracts</div>
       </div>
     </div>
   </div>
 
-  <!-- 圖表視覺化區 -->
+  <!-- 圖表展示區塊 -->
   <div class="row g-4 mb-4">
-    <div class="col-12 col-lg-7">
-      <div class="card kpi-card p-3">
-        <h5 class="fw-bold mb-3">📊 每月入帳配息走勢 (元)</h5>
-        <div style="position: relative; height: 300px;">
+    <div class="col-12 col-lg-8">
+      <div class="glass-card h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-white">歷次利息入帳流水帳 (元)</h6>
+          <span class="text-muted small">每月分佈</span>
+        </div>
+        <div style="position: relative; height: 280px;">
           <canvas id="chart-payouts"></canvas>
         </div>
       </div>
     </div>
-    <div class="col-12 col-lg-5">
-      <div class="card kpi-card p-3">
-        <h5 class="fw-bold mb-3">🥧 合約期長配置比例</h5>
-        <div style="position: relative; height: 300px;">
+    <div class="col-12 col-lg-4">
+      <div class="glass-card h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-white">契約期限資本配置</h6>
+          <span class="text-muted small">半年 vs 一年</span>
+        </div>
+        <div style="position: relative; height: 280px;">
           <canvas id="chart-terms"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 合約監控清單 -->
-  <div class="table-container mb-4">
-    <h5 class="fw-bold mb-3">⏳ 合約到期與回金排程監控</h5>
+  <!-- 契約即時排程監控清單 -->
+  <div class="glass-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0 text-white">契約狀態、到期與回金週期排程</h6>
+      <span class="text-muted small">週三常規交割協議</span>
+    </div>
     <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-light">
+      <table class="table table-dark-custom align-middle">
+        <thead>
           <tr>
-            <th>合約序號</th>
-            <th>長度</th>
-            <th>金額 (萬)</th>
-            <th>月利率 %</th>
-            <th>月盈餘 (元)</th>
-            <th>生效日</th>
-            <th>合約到期日</th>
-            <th>續約/回金生效日 (保證週三)</th>
-            <th>剩餘天數</th>
+            <th>契約序號</th>
+            <th>期限長度</th>
+            <th>本金 (萬)</th>
+            <th>月盈餘率</th>
+            <th>每月分配 (元)</th>
+            <th>起算生效日</th>
+            <th>約定期滿日</th>
+            <th>回金/續約交割日 (固定週三)</th>
+            <th>期滿倒數</th>
             <th>狀態</th>
-            <th>操作</th>
+            <th class="text-end">管理</th>
           </tr>
         </thead>
         <tbody id="contract-rows"></tbody>
@@ -117,69 +286,69 @@
   </div>
 </div>
 
-<!-- Modal: 新增合約對話框 -->
+<!-- Modal: 新增契約對話框 -->
 <div class="modal fade" id="modalAddContract" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title fw-bold">新增投資合約</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h5 class="modal-title fw-bold">＋ 建立新投資契約</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body p-4">
         <form id="form-contract">
-          <div class="mb-2">
-            <label class="form-label">合約序號 / 編號</label>
-            <input type="text" id="c-id" class="form-control" required placeholder="例如：8 或 5.1">
+          <div class="mb-3">
+            <label class="form-label text-muted small">契約序號 / 版本</label>
+            <input type="text" id="c-id" class="form-control" required placeholder="如：8 或 5.1">
           </div>
-          <div class="mb-2">
-            <label class="form-label">合約長度</label>
+          <div class="mb-3">
+            <label class="form-label text-muted small">契約期限</label>
             <select id="c-term" class="form-select">
-              <option value="半年">半年 (6個月)</option>
-              <option value="一年">一年 (12個月)</option>
+              <option value="半年">半年期 (6 個月)</option>
+              <option value="一年">一年期 (12 個月)</option>
             </select>
           </div>
-          <div class="mb-2">
-            <label class="form-label">投資金額 (萬)</label>
-            <input type="number" id="c-amount" class="form-control" required min="1" step="1" placeholder="例如：100">
+          <div class="mb-3">
+            <label class="form-label text-muted small">契約金額 (萬元)</label>
+            <input type="number" id="c-amount" class="form-control" required min="1" step="1" placeholder="100">
           </div>
-          <div class="mb-2">
-            <label class="form-label">月盈餘利率 (%)</label>
-            <input type="number" id="c-rate" class="form-control" required min="0.1" step="0.1" placeholder="例如：1.5">
+          <div class="mb-3">
+            <label class="form-label text-muted small">約定月盈餘率 (%)</label>
+            <input type="number" id="c-rate" class="form-control" required min="0.1" step="0.1" placeholder="1.5">
           </div>
-          <div class="mb-2">
-            <label class="form-label">生效日起算日</label>
+          <div class="mb-3">
+            <label class="form-label text-muted small">起算起息日</label>
             <input type="date" id="c-start" class="form-control" required>
           </div>
-          <button type="submit" class="btn btn-primary w-100 mt-3">確認儲存合約</button>
+          <button type="submit" class="btn btn-action btn-primary-glow text-white w-100 py-2 mt-2">確認建立契約</button>
         </form>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal: 記錄領息對話框 -->
+<!-- Modal: 登記領息對話框 -->
 <div class="modal fade" id="modalAddPayout" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title fw-bold">登記利息入帳</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h5 class="modal-title fw-bold">＋ 登記配息入帳</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body p-4">
         <form id="form-payout">
-          <div class="mb-2">
-            <label class="form-label">對應合約序號</label>
+          <div class="mb-3">
+            <label class="form-label text-muted small">關聯契約序號</label>
             <select id="p-id" class="form-select" required></select>
           </div>
-          <div class="mb-2">
-            <label class="form-label">入帳日期</label>
+          <div class="mb-3">
+            <label class="form-label text-muted small">實體入帳日期</label>
             <input type="date" id="p-date" class="form-control" required>
           </div>
-          <div class="mb-2">
-            <label class="form-label">實領金額 (元)</label>
+          <div class="mb-3">
+            <label class="form-label text-muted small">入帳盈餘金額 (元)</label>
             <input type="number" id="p-amount" class="form-control" required min="1" step="1">
           </div>
-          <button type="submit" class="btn btn-success w-100 mt-3">儲存領息紀錄</button>
+          <button type="submit" class="btn btn-action btn-emerald-glow text-white w-100 py-2 mt-2">確認儲存入帳</button>
         </form>
       </div>
     </div>
@@ -190,11 +359,9 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  // 核心資料庫結構 (保存在瀏覽器 localStorage 中)
-  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA";
-  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA";
+  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V2";
+  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V2";
 
-  // 初始範本資料
   const DEFAULT_CONTRACTS = [
     { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
     { id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
@@ -220,18 +387,18 @@
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
 
-  // 1. 保證下一個週三的演算法
+  // 1. 保證下一個星期三的數學算法
   function calculateNextWednesday(dateStr) {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "-";
-    const day = d.getDay(); // 0(週日) ~ 6(週六)
-    const w = (day === 0) ? 7 : day; // 1(週一) ~ 7(週日)
+    const day = d.getDay();
+    const w = (day === 0) ? 7 : day;
     const delta = ((9 - w) % 7) + 1;
     d.setDate(d.getDate() + delta);
     return d.toISOString().split('T')[0];
   }
 
-  // 2. 合約到期日推算 (月數累加)
+  // 2. 合約到期日推算
   function calculateEndDate(startDateStr, term) {
     const d = new Date(startDateStr);
     const months = (term === "半年") ? 6 : 12;
@@ -258,9 +425,8 @@
   function renderApp() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    document.getElementById('update-date').innerText = `基準日期：${today.toISOString().split('T')[0]}`;
+    document.getElementById('update-date').innerText = `系統基期：${today.toISOString().split('T')[0]}`;
 
-    // KPI 計算
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
     const monthlyCashflow = activeContracts.reduce((sum, c) => sum + (c.amount * 10000 * (c.rate / 100)), 0);
@@ -271,7 +437,7 @@
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 渲染表格
+    // 渲染契約清單
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
     const pSelect = document.getElementById('p-id');
@@ -287,18 +453,26 @@
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${c.id}</strong></td>
-        <td>${c.term}</td>
-        <td>${c.amount} 萬</td>
-        <td>${c.rate}%</td>
-        <td>${monthlyGain.toLocaleString()}</td>
-        <td>${c.startDate}</td>
-        <td>${endDate}</td>
-        <td><span class="badge bg-light text-dark border">${nextWed}</span></td>
-        <td class="${isUrgent ? 'warning-expire' : ''}">${daysLeft} 天</td>
-        <td><span class="badge ${c.status === '合約有效' ? 'bg-success' : 'bg-secondary'}">${c.status}</span></td>
+        <td><span class="badge badge-pill badge-secondary-glow">${c.id}</span></td>
+        <td><span class="text-white">${c.term}</span></td>
+        <td class="num-font fw-semibold">${c.amount} 萬</td>
+        <td class="num-font text-info">${c.rate}%</td>
+        <td class="num-font text-emerald fw-semibold" style="color: var(--accent-emerald);">${monthlyGain.toLocaleString()}</td>
+        <td class="num-font text-muted small">${c.startDate}</td>
+        <td class="num-font small">${endDate}</td>
+        <td><span class="badge badge-pill badge-secondary-glow num-font">${nextWed}</span></td>
         <td>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteContract(${index})">刪除</button>
+          <span class="badge badge-pill ${isUrgent ? 'badge-alert' : 'badge-secondary-glow'} num-font">
+            ${isUrgent ? '🔥 ' : ''}${daysLeft} 天
+          </span>
+        </td>
+        <td>
+          <span class="badge badge-pill ${c.status === '合約有效' ? 'badge-active' : 'badge-secondary-glow'}">
+            ${c.status}
+          </span>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 2px 8px;" onclick="deleteContract(${index})">刪除</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -306,7 +480,7 @@
       if (c.status === "合約有效") {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = `合約 ${c.id} (${c.amount}萬 - ${c.rate}%)`;
+        opt.textContent = `契約 ${c.id} (${c.amount}萬 - ${c.rate}%)`;
         pSelect.appendChild(opt);
       }
     });
@@ -314,9 +488,9 @@
     renderCharts(activeContracts);
   }
 
-  // 5. 圖表繪製
+  // 5. 圖表渲染 (暗黑調色盤)
   function renderCharts(activeContracts) {
-    // 柱狀圖：每月領息
+    // 柱狀圖
     const monthlyMap = {};
     payouts.forEach(p => {
       monthlyMap[p.date] = (monthlyMap[p.date] || 0) + Number(p.amount);
@@ -330,12 +504,35 @@
       type: 'bar',
       data: {
         labels: pLabels,
-        datasets: [{ label: '入帳配息 (元)', data: pValues, backgroundColor: '#0d6efd', borderRadius: 6 }]
+        datasets: [{
+          label: '入帳盈餘 (元)',
+          data: pValues,
+          backgroundColor: '#38BDF8',
+          hoverBackgroundColor: '#7DD3FC',
+          borderRadius: 8
+        }]
       },
-      options: { responsive: true, maintainAspectRatio: false }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1E293B',
+            titleColor: '#F8FAFC',
+            bodyColor: '#38BDF8',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8' } },
+          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8' } }
+        }
+      }
     });
 
-    // 圓餅圖：期長分佈
+    // 甜甜圈圖
     const termMap = {};
     activeContracts.forEach(c => {
       termMap[c.term] = (termMap[c.term] || 0) + Number(c.amount);
@@ -347,13 +544,27 @@
       type: 'doughnut',
       data: {
         labels: Object.keys(termMap),
-        datasets: [{ data: Object.values(termMap), backgroundColor: ['#198754', '#fd7e14'] }]
+        datasets: [{
+          data: Object.values(termMap),
+          backgroundColor: ['#10B981', '#6366F1'],
+          borderWidth: 0
+        }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#94A3B8', boxWidth: 12, padding: 16 }
+          }
+        },
+        cutout: '72%'
+      }
     });
   }
 
-  // 6. 表單事件處理
+  // 6. 表單事件監聽
   document.getElementById('form-contract').addEventListener('submit', function(e) {
     e.preventDefault();
     contracts.push({
@@ -384,20 +595,20 @@
   });
 
   function deleteContract(idx) {
-    if (confirm(`確定要刪除此筆合約嗎？`)) {
+    if (confirm(`確認刪除此筆合約紀錄？`)) {
       contracts.splice(idx, 1);
       saveData();
       renderApp();
     }
   }
 
-  // 7. 備份匯出與匯入
+  // 7. 備份管理
   function exportData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts }, null, 2));
-    const dlAnchor = document.createElement('a');
-    dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `私募基金備份_${new Date().toISOString().split('T')[0]}.json`);
-    dlAnchor.click();
+    const dl = document.createElement('a');
+    dl.setAttribute("href", dataStr);
+    dl.setAttribute("download", `基金投資備份_${new Date().toISOString().split('T')[0]}.json`);
+    dl.click();
   }
 
   function importData(event) {
@@ -412,17 +623,17 @@
           payouts = imported.payouts;
           saveData();
           renderApp();
-          alert("資料匯入成功！");
+          alert("備份資料還原成功！");
         }
       } catch (err) {
-        alert("匯入失敗：檔案格式不正確。");
+        alert("還原失敗：JSON 格式無效。");
       }
     };
     reader.readAsText(file);
   }
 
   function resetToDefault() {
-    if (confirm("確定要重設回預設合約與領息資料嗎？")) {
+    if (confirm("確認重設為出廠範本資料？所有自訂修改將被清除。")) {
       contracts = DEFAULT_CONTRACTS;
       payouts = DEFAULT_PAYOUTS;
       saveData();
