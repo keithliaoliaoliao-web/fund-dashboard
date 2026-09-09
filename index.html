@@ -696,19 +696,18 @@
   const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V9";
   const STORAGE_KEY_TOPUPS = "FUND_TOPUP_LOGS_V9";
 
-  // ==========================================
-  // 【選填】Google Firebase 免費雲端資料庫設定
-  // 若填入您的 Firebase 設定，網頁將自動跨電腦/手機無縫即時同步！
-  // 若未填寫，系統將自動維持以本地快取模式運作。
+// ==========================================
+  // 【已啟用】Google Firebase 雲端資料庫正式設定
   // ==========================================
   const FIREBASE_CONFIG = {
-    apiKey: "",
-    authDomain: "",
-    databaseURL: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyC1LyKi2Vw2hEqoMKay8QUaUj8phnv8hds",
+    authDomain: "my-fund-sync.firebaseapp.com",
+    databaseURL: "https://my-fund-sync-default-rtdb.firebaseio.com",
+    projectId: "my-fund-sync",
+    storageBucket: "my-fund-sync.firebasestorage.app",
+    messagingSenderId: "907839429004",
+    appId: "1:907839429004:web:083825d8d05b92906d1ea9",
+    measurementId: "G-TD240CP07T"
   };
 
   let isFirebaseEnabled = false;
