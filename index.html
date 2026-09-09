@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>私人資產管理終端 (Stripe/Linear 極簡風)</title>
-  <!-- Google Fonts: Inter 字型庫 -->
+  <title>私人資產管理終端 | Stripe & Linear 精品風格</title>
+  <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -14,51 +14,65 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    /* ==========================================================
+       Stripe / Linear 專業金融設計規範 (Design Tokens)
+       ========================================================== */
     :root {
-      --bg-surface: #F8FAFC;
-      --card-bg: #FFFFFF;
-      --border-color: #E2E8F0;
-      --text-primary: #0F172A;
-      --text-secondary: #64748B;
-      --text-muted: #94A3B8;
-      --accent-indigo: #4F46E5;
-      --accent-emerald: #059669;
-      --accent-amber: #D97706;
-      --accent-rose: #E11D48;
+      --bg-app: #F9FAFB;
+      --surface-card: #FFFFFF;
+      --border-subtle: #EAECF0;
+      --border-strong: #D0D5DD;
+      --text-main: #101828;
+      --text-muted: #475467;
+      --text-tertiary: #98A2B3;
+      
+      --brand-dark: #0F172A;
+      --brand-primary: #6366F1;
+      --color-emerald: #059669;
+      --color-emerald-bg: #ECFDF5;
+      --color-amber: #D97706;
+      --color-amber-bg: #FFFBEB;
+      --color-rose: #E11D48;
+      --color-rose-bg: #FFF1F2;
+      --color-purple: #7C3AED;
+      --color-purple-bg: #F5F3FF;
     }
 
     body {
-      background-color: var(--bg-surface);
+      background-color: var(--bg-app);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: var(--text-primary);
+      color: var(--text-main);
       -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
     }
 
-    /* 數字等寬對齊 */
+    /* 數字等寬對齊，確保金融財務表格整齊一致 */
     .num-font {
       font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
       letter-spacing: -0.01em;
     }
 
-    /* Stripe / Linear 極簡卡片 */
-    .minimal-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
+    /* Stripe 極簡白底微陰影卡片 */
+    .stripe-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05), 0 1px 2px rgba(16, 24, 40, 0.02);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .minimal-card:hover {
-      border-color: #CBD5E1;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+    .stripe-card:hover {
+      border-color: var(--border-strong);
+      box-shadow: 0 4px 6px -1px rgba(16, 24, 40, 0.06);
     }
 
+    /* 指標卡排版 */
     .kpi-title {
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -66,199 +80,223 @@
     .kpi-value {
       font-size: 2rem;
       font-weight: 700;
-      color: var(--text-primary);
-      margin-top: 6px;
+      color: var(--text-main);
+      margin-top: 8px;
     }
 
-    /* 極簡按鈕規格 */
-    .btn-minimal {
+    /* Linear 風格精密按鈕 */
+    .btn-linear {
       background-color: #FFFFFF;
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      color: var(--text-main);
       font-weight: 500;
       font-size: 0.875rem;
       border-radius: 8px;
-      padding: 8px 16px;
+      padding: 7px 14px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
       transition: all 0.15s ease;
     }
 
-    .btn-minimal:hover {
-      background-color: #F1F5F9;
-      border-color: #CBD5E1;
-      color: var(--text-primary);
+    .btn-linear:hover {
+      background-color: #F8FAFC;
+      border-color: #98A2B3;
+      color: var(--text-main);
     }
 
-    .btn-primary-dark {
-      background-color: #0F172A;
-      border: 1px solid #0F172A;
+    .btn-brand-dark {
+      background-color: var(--brand-dark);
+      border: 1px solid var(--brand-dark);
       color: #FFFFFF;
       font-weight: 500;
       font-size: 0.875rem;
       border-radius: 8px;
-      padding: 8px 16px;
+      padding: 7px 14px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
       transition: all 0.15s ease;
     }
 
-    .btn-primary-dark:hover {
+    .btn-brand-dark:hover {
       background-color: #1E293B;
       color: #FFFFFF;
     }
 
-    .btn-emerald {
-      background-color: #059669;
-      border: 1px solid #059669;
+    .btn-brand-emerald {
+      background-color: var(--color-emerald);
+      border: 1px solid var(--color-emerald);
       color: #FFFFFF;
       font-weight: 500;
       font-size: 0.875rem;
       border-radius: 8px;
-      padding: 8px 16px;
+      padding: 7px 14px;
+      box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
       transition: all 0.15s ease;
     }
 
-    .btn-emerald:hover {
+    .btn-brand-emerald:hover {
       background-color: #047857;
       color: #FFFFFF;
     }
 
-    .btn-indigo {
-      background-color: #4F46E5;
-      border: 1px solid #4F46E5;
+    .btn-brand-purple {
+      background-color: var(--brand-primary);
+      border: 1px solid var(--brand-primary);
       color: #FFFFFF;
       font-weight: 500;
       font-size: 0.875rem;
       border-radius: 8px;
-      padding: 8px 16px;
+      padding: 7px 14px;
+      box-shadow: 0 1px 2px rgba(99, 102, 241, 0.2);
       transition: all 0.15s ease;
     }
 
-    .btn-indigo:hover {
-      background-color: #4338CA;
+    .btn-brand-purple:hover {
+      background-color: #4F46E5;
       color: #FFFFFF;
     }
 
-    /* 表格樣式 */
-    .table-minimal {
+    /* 精緻表格 (Linear 表格風格) */
+    .table-linear {
       --bs-table-bg: transparent;
-      --bs-table-color: var(--text-primary);
-      border-color: #F1F5F9;
+      margin-bottom: 0;
     }
 
-    .table-minimal th {
-      color: var(--text-secondary);
+    .table-linear th {
+      color: var(--text-muted);
       font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-bottom: 1px solid var(--border-color);
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border-subtle);
       padding: 12px 14px;
+      background-color: #FAFBFB;
     }
 
-    .table-minimal td {
+    .table-linear td {
       vertical-align: middle;
-      padding: 16px 14px;
+      padding: 14px 14px;
       font-size: 0.875rem;
-      border-bottom: 1px solid #F1F5F9;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
     }
 
-    /* 狀態標籤 */
-    .status-badge {
+    .table-linear tbody tr:hover {
+      background-color: #F8FAFC;
+    }
+
+    /* 附帶實體狀態圓點 (Status Dots) 的精緻標籤 */
+    .status-pill {
       display: inline-flex;
       align-items: center;
-      padding: 4px 10px;
-      border-radius: 6px;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 9999px;
       font-size: 0.75rem;
       font-weight: 500;
     }
 
-    .status-active {
-      background-color: #ECFDF5;
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .pill-active {
+      background-color: var(--color-emerald-bg);
       color: #065F46;
       border: 1px solid #A7F3D0;
     }
+    .pill-active .status-dot { background-color: var(--color-emerald); }
 
-    .status-merged {
-      background-color: #EEF2FF;
-      color: #3730A3;
-      border: 1px solid #C7D2FE;
+    .pill-merged {
+      background-color: var(--color-purple-bg);
+      color: #5B21B6;
+      border: 1px solid #DDD6FE;
     }
+    .pill-merged .status-dot { background-color: var(--color-purple); }
 
-    .status-alert {
-      background-color: #FEF2F2;
-      color: #991B1B;
-      border: 1px solid #FECACA;
+    .pill-alert {
+      background-color: var(--color-rose-bg);
+      color: #9F1239;
+      border: 1px solid #FECDD3;
     }
+    .pill-alert .status-dot { background-color: var(--color-rose); }
 
-    .status-neutral {
-      background-color: #F1F5F9;
-      color: #475569;
-      border: 1px solid #E2E8F0;
+    .pill-neutral {
+      background-color: #F2F4F7;
+      color: #344054;
+      border: 1px solid #EAECF0;
     }
+    .pill-neutral .status-dot { background-color: #667085; }
 
-    /* 勾選清單項目 */
-    .select-item {
-      border: 1px solid var(--border-color);
+    /* 清單選取列樣式 */
+    .selection-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
       border-radius: 8px;
-      padding: 14px 16px;
+      padding: 12px 16px;
       margin-bottom: 8px;
       cursor: pointer;
-      transition: background-color 0.15s ease, border-color 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
     }
 
-    .select-item:hover {
+    .selection-card:hover {
+      border-color: var(--border-strong);
       background-color: #F8FAFC;
-      border-color: #CBD5E1;
     }
   </style>
 </head>
 <body class="py-4">
 
 <div class="container-fluid px-lg-5 px-3">
-  <!-- 頁頭控制區塊 -->
+  <!-- 頁頭控制列 -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 gap-3">
     <div>
       <div class="d-flex align-items-center gap-2">
-        <h3 class="fw-bold mb-0" style="letter-spacing: -0.02em;">私人投資組合終端</h3>
-        <span class="status-badge status-active">實時運行中</span>
+        <h4 class="fw-bold mb-0" style="letter-spacing: -0.02em;">私人投資組合終端</h4>
+        <span class="status-pill pill-active"><span class="status-dot"></span>系統運作中</span>
       </div>
-      <p class="text-secondary small mb-0 mt-1" id="update-date">系統資料加載中...</p>
+      <p class="text-secondary small mb-0 mt-1" id="update-date">加載時間基準中...</p>
     </div>
     
     <div class="d-flex flex-wrap gap-2">
-      <button class="btn btn-primary-dark" data-bs-toggle="modal" data-bs-target="#modalAddContract">＋ 新增契約</button>
-      <button class="btn btn-indigo" onclick="openMergeModal()">🔀 合約合併</button>
-      <button class="btn btn-emerald" onclick="openBatchPayoutModal()">💰 登記領息</button>
-      <button class="btn btn-minimal" onclick="exportData()">匯出備份 (JSON)</button>
-      <button class="btn btn-minimal" onclick="document.getElementById('file-import').click()">匯入備份</button>
+      <button class="btn btn-brand-dark" data-bs-toggle="modal" data-bs-target="#modalAddContract">＋ 新增契約</button>
+      <button class="btn btn-brand-purple" onclick="openMergeModal()">🔀 合約合併 / 加碼</button>
+      <button class="btn btn-brand-emerald" onclick="openBatchPayoutModal()">💰 登記現金領息</button>
+      <button class="btn btn-linear" onclick="exportData()">匯出備份 (JSON)</button>
+      <button class="btn btn-linear" onclick="document.getElementById('file-import').click()">匯入備份</button>
       <input type="file" id="file-import" class="d-none" accept=".json" onchange="importData(event)">
-      <button class="btn btn-minimal text-danger" onclick="resetToDefault()">重設資料</button>
+      <button class="btn btn-linear text-danger" onclick="resetToDefault()">重設資料庫</button>
     </div>
   </div>
 
   <!-- 四大核心 KPI 卡片 -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="minimal-card">
+      <div class="stripe-card">
         <div class="kpi-title">總有效在約本金</div>
         <div class="kpi-value num-font" id="kpi-principal">0 萬</div>
         <div class="text-secondary small mt-2">Active Capital Pool</div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="minimal-card">
-        <div class="kpi-title">預計每月固定收益</div>
-        <div class="kpi-value num-font" style="color: var(--accent-emerald);" id="kpi-cashflow">0 元</div>
-        <div class="text-secondary small mt-2">Monthly Cashflow (現金)</div>
+      <div class="stripe-card">
+        <div class="kpi-title">預計每月固定收益 (現金)</div>
+        <div class="kpi-value num-font" style="color: var(--color-emerald);" id="kpi-cashflow">0 元</div>
+        <div class="text-secondary small mt-2">Monthly Cashflow</div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="minimal-card">
+      <div class="stripe-card">
         <div class="kpi-title">歷史累計已領盈餘</div>
-        <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
+        <div class="kpi-value num-font" style="color: var(--color-amber);" id="kpi-interest">0 萬</div>
         <div class="text-secondary small mt-2">Cumulative Payouts</div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="minimal-card">
+      <div class="stripe-card">
         <div class="kpi-title">生效中契約序號數</div>
         <div class="kpi-value num-font" id="kpi-count">0 筆</div>
         <div class="text-secondary small mt-2">Active Contracts</div>
@@ -269,47 +307,50 @@
   <!-- 圖表展示區塊 -->
   <div class="row g-4 mb-4">
     <div class="col-12 col-lg-8">
-      <div class="minimal-card h-100">
+      <div class="stripe-card h-100">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold mb-0">每月配息流水帳匯總 (元)</h6>
+          <h6 class="fw-bold mb-0">每月配息流水帳趨勢 (元)</h6>
           <span class="text-secondary small">現金實領</span>
         </div>
-        <div style="position: relative; height: 280px;">
+        <div style="position: relative; height: 260px;">
           <canvas id="chart-payouts"></canvas>
         </div>
       </div>
     </div>
     <div class="col-12 col-lg-4">
-      <div class="minimal-card h-100">
+      <div class="stripe-card h-100">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold mb-0">合約期長資金配置</h6>
-          <span class="text-secondary small">半年 vs 一年</span>
+          <h6 class="fw-bold mb-0">合約期長資金分佈</h6>
+          <span class="text-secondary small">半年期 vs 一年期</span>
         </div>
-        <div style="position: relative; height: 280px;">
+        <div style="position: relative; height: 260px;">
           <canvas id="chart-terms"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 契約即時排程監控清單 -->
-  <div class="minimal-card mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h6 class="fw-bold mb-0">投資合約監控與結算排程</h6>
-      <span class="text-secondary small">週三交割機制</span>
+  <!-- 契約即時排程監控清單 (含累計領息欄位) -->
+  <div class="stripe-card mb-4 p-0" style="overflow: hidden;">
+    <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="fw-bold mb-0">合約清單與到期監控</h6>
+        <span class="text-secondary small">支援舊合約累計領息追蹤與週三交割機制</span>
+      </div>
     </div>
     <div class="table-responsive">
-      <table class="table table-minimal align-middle">
+      <table class="table table-linear align-middle">
         <thead>
           <tr>
             <th>契約序號</th>
-            <th>期限</th>
+            <th>長度</th>
             <th>本金 (萬)</th>
-            <th>月利率</th>
-            <th>約定月收益 (元)</th>
-            <th>起息日</th>
+            <th>月利率 %</th>
+            <th>預計月收益 (元)</th>
+            <th style="background-color: #F0FDF4; color: #166534;">累計領息 (元)</th>
+            <th>起算日</th>
             <th>到期日</th>
-            <th>回金/續約交割日 (固定週三)</th>
+            <th>交割日 (固定週三)</th>
             <th>倒數天數</th>
             <th>狀態</th>
             <th class="text-end">管理</th>
@@ -324,7 +365,7 @@
 <!-- Modal: 新增契約對話框 -->
 <div class="modal fade" id="modalAddContract" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--border-color);">
+    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 25px rgba(0,0,0,0.08);">
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title fw-bold">＋ 建立新合約</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -347,88 +388,96 @@
             <input type="number" id="c-amount" class="form-control" required min="1" step="1" placeholder="100">
           </div>
           <div class="mb-3">
-            <label class="form-label text-secondary small">約定月盈餘率 (%)</label>
+            <label class="form-label text-secondary small">月收益率 (%)</label>
             <input type="number" id="c-rate" class="form-control" required min="0.1" step="0.1" placeholder="1.5">
           </div>
           <div class="mb-3">
             <label class="form-label text-secondary small">起息生效日</label>
             <input type="date" id="c-start" class="form-control" required>
           </div>
-          <button type="submit" class="btn btn-primary-dark w-100 py-2 mt-2">確認建立合約</button>
+          <button type="submit" class="btn btn-brand-dark w-100 py-2 mt-2">確認建立合約</button>
         </form>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal: 批量領息對話框 (純勾選式 - 選項 A) -->
+<!-- Modal: 批量領息對話框 (純勾選現金領取，支援補登舊約) -->
 <div class="modal fade" id="modalBatchPayout" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--border-color);">
+    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--border-subtle);">
       <div class="modal-header border-0 pb-0">
         <div>
-          <h5 class="modal-title fw-bold">💰 登記配息入帳 (全額現金領取)</h5>
-          <p class="text-secondary small mb-0 mt-1">系統已依起息日智能預選本月合格合約，勾選即可批次入帳</p>
+          <h5 class="modal-title fw-bold">💰 登記配息入帳 (現金領取)</h5>
+          <p class="text-secondary small mb-0 mt-1">系統依起息日智能預選，勾選即代表全額現金交付</p>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
-        <!-- 入帳日期與全選開關 -->
         <div class="row g-3 align-items-center mb-3 pb-3 border-bottom">
-          <div class="col-12 col-md-6">
+          <div class="col-12 col-md-5">
             <label class="form-label text-secondary small mb-1">本次實領入帳日期</label>
             <input type="date" id="batch-payout-date" class="form-control" required onchange="handlePayoutDateChange()">
           </div>
-          <div class="col-12 col-md-6 d-flex justify-content-md-end align-items-end mt-md-4">
+          <div class="col-12 col-md-7 d-flex justify-content-md-end align-items-center gap-3 mt-md-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="show-merged-payout" onchange="handlePayoutDateChange()">
+              <label class="form-check-label small text-secondary" for="show-merged-payout">顯示已合併合約 (補登舊利息)</label>
+            </div>
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="check-all-payouts" onchange="toggleSelectAllPayouts(this.checked)">
-              <label class="form-check-label small fw-semibold text-secondary" for="check-all-payouts">全選合格合約</label>
+              <label class="form-check-label small fw-semibold text-secondary" for="check-all-payouts">全選合格項目</label>
             </div>
           </div>
         </div>
 
-        <!-- 契約勾選清單 (純勾選，無金額輸入框) -->
         <div id="batch-payout-list" style="max-height: 360px; overflow-y: auto;"></div>
 
-        <!-- 底部統計與送出 -->
         <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 mt-3 border-top">
           <div>
-            <span class="text-secondary small">實領現金匯總：</span>
+            <span class="text-secondary small">實領現金總計：</span>
             <span class="fw-bold text-dark fs-5 num-font" id="batch-summary-text">已選 0 筆，總計 0 元</span>
           </div>
-          <button type="button" class="btn btn-emerald px-4 py-2" onclick="submitBatchPayout()">確認領取入帳</button>
+          <button type="button" class="btn btn-brand-emerald px-4 py-2" onclick="submitBatchPayout()">確認領取入帳</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal: 合約合併對話框 -->
+<!-- Modal: 合約合併與加碼對話框 -->
 <div class="modal fade" id="modalMergeContract" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--border-color);">
+    <div class="modal-content" style="border-radius: 12px; border: 1px solid var(--border-subtle);">
       <div class="modal-header border-0 pb-0">
         <div>
-          <h5 class="modal-title fw-bold">🔀 合併現有合約</h5>
-          <p class="text-secondary small mb-0 mt-1">選取要整併的舊合約，原合約將封存歸檔並自動生成新合約</p>
+          <h5 class="modal-title fw-bold">🔀 合約合併與額外加碼</h5>
+          <p class="text-secondary small mb-0 mt-1">選取要合併的舊合約，舊約歷史累計領息將永久保存歸檔</p>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
         <form id="form-merge" onsubmit="submitMergeContract(event)">
-          <!-- 選取合約區塊 -->
-          <label class="form-label text-secondary small mb-2">請勾選要合併的合約 (至少選取 2 筆)：</label>
-          <div id="merge-contract-list" class="mb-3" style="max-height: 220px; overflow-y: auto;"></div>
+          <label class="form-label text-secondary small mb-2">1. 勾選欲合併的合約 (至少勾選 1 筆)：</label>
+          <div id="merge-contract-list" class="mb-3" style="max-height: 200px; overflow-y: auto;"></div>
 
-          <div class="p-3 bg-light rounded-3 mb-3 border">
-            <span class="text-secondary small">合併累計本金：</span>
-            <span class="fw-bold fs-5 num-font text-dark ms-1" id="merge-total-amount">0 萬元</span>
+          <!-- 加碼額度輸入欄位 -->
+          <div class="row g-3 mb-3 p-3 bg-light rounded-3 border">
+            <div class="col-12 col-md-6">
+              <label class="form-label text-secondary small mb-1 fw-bold">＋ 額外加碼金額 (萬元)</label>
+              <input type="number" id="m-topup" class="form-control" value="0" min="0" step="1" oninput="updateMergeSummary()">
+              <span class="text-secondary" style="font-size: 0.75rem;">無加碼請維持 0</span>
+            </div>
+            <div class="col-12 col-md-6 d-flex flex-column justify-content-center">
+              <div class="small text-secondary">合併結算總規模：</div>
+              <div class="fw-bold fs-5 num-font text-dark" id="merge-calc-display">舊約 0 萬 ＋ 加碼 0 萬 ＝ 0 萬元</div>
+            </div>
           </div>
 
-          <!-- 新合約規格 -->
+          <label class="form-label text-secondary small mb-2">2. 新合約參數設定：</label>
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label class="form-label text-secondary small">合併後新合約序號</label>
+              <label class="form-label text-secondary small">合併後新契約序號</label>
               <input type="text" id="m-id" class="form-control" required placeholder="如：M1 或 8">
             </div>
             <div class="col-12 col-md-6">
@@ -439,7 +488,7 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label text-secondary small">新約定月盈餘率 (%)</label>
+              <label class="form-label text-secondary small">新約定月收益率 (%)</label>
               <input type="number" id="m-rate" class="form-control" required min="0.1" step="0.1" placeholder="1.8">
             </div>
             <div class="col-12 col-md-6">
@@ -448,7 +497,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-indigo w-100 py-2 mt-4">確認合併並建立新合約</button>
+          <button type="submit" class="btn btn-brand-purple w-100 py-2 mt-4">確認合併並啟用新契約</button>
         </form>
       </div>
     </div>
@@ -459,9 +508,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V4";
-  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V4";
+  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V5";
+  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V5";
 
+  // 預設合約
   const DEFAULT_CONTRACTS = [
     { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
     { id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
@@ -472,6 +522,7 @@
     { id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
   ];
 
+  // 預設領息明細
   const DEFAULT_PAYOUTS = [
     { contractId: "1", date: "2026-06-18", amount: 14400 },
     { contractId: "2", date: "2026-06-18", amount: 3600 },
@@ -479,7 +530,28 @@
     { contractId: "4", date: "2026-06-18", amount: 14000 },
     { contractId: "5", date: "2026-06-18", amount: 8500 },
     { contractId: "6", date: "2026-06-18", amount: 4800 },
-    { contractId: "7", date: "2026-06-18", amount: 16000 }
+    { contractId: "7", date: "2026-06-18", amount: 16000 },
+    { contractId: "1", date: "2026-07-18", amount: 14400 },
+    { contractId: "2", date: "2026-07-18", amount: 3600 },
+    { contractId: "3", date: "2026-07-18", amount: 27000 },
+    { contractId: "4", date: "2026-07-18", amount: 14000 },
+    { contractId: "5", date: "2026-07-18", amount: 0 },
+    { contractId: "6", date: "2026-07-18", amount: 4800 },
+    { contractId: "7", date: "2026-07-18", amount: 16000 },
+    { contractId: "1", date: "2026-08-22", amount: 14400 },
+    { contractId: "2", date: "2026-08-22", amount: 3600 },
+    { contractId: "3", date: "2026-08-22", amount: 27000 },
+    { contractId: "4", date: "2026-08-22", amount: 14000 },
+    { contractId: "5", date: "2026-08-22", amount: 12600 },
+    { contractId: "6", date: "2026-08-22", amount: 4800 },
+    { contractId: "7", date: "2026-08-22", amount: 16000 },
+    { contractId: "1", date: "2026-09-19", amount: 14400 },
+    { contractId: "2", date: "2026-09-19", amount: 3600 },
+    { contractId: "3", date: "2026-09-19", amount: 27000 },
+    { contractId: "4", date: "2026-09-19", amount: 14000 },
+    { contractId: "5", date: "2026-09-19", amount: 12600 },
+    { contractId: "6", date: "2026-09-19", amount: 4800 },
+    { contractId: "7", date: "2026-09-19", amount: 16000 }
   ];
 
   let contracts = [];
@@ -525,11 +597,11 @@
     localStorage.setItem(STORAGE_KEY_PAYOUTS, JSON.stringify(payouts));
   }
 
-  // 4. 核心畫面渲染
+  // 4. 畫面渲染
   function renderApp() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    document.getElementById('update-date').innerText = `基準日期：${today.toISOString().split('T')[0]}`;
+    document.getElementById('update-date').innerText = `數據基準日期：${today.toISOString().split('T')[0]}`;
 
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
@@ -553,28 +625,35 @@
       const monthlyGain = Math.round(c.amount * 10000 * (c.rate / 100));
       const isUrgent = daysLeft <= 45 && c.status === "合約有效";
 
-      let statusBadgeClass = "status-neutral";
-      if (c.status === "合約有效") statusBadgeClass = "status-active";
-      if (c.status === "已合併") statusBadgeClass = "status-merged";
+      // 計算該合約的累計領息 (包含已合併的舊約)
+      const cumInterest = payouts
+        .filter(p => String(p.contractId) === String(c.id))
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      let statusPillClass = "pill-neutral";
+      if (c.status === "合約有效") statusPillClass = "pill-active";
+      if (c.status === "已合併") statusPillClass = "pill-merged";
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><span class="status-badge status-neutral num-font">${c.id}</span></td>
+        <td><span class="num-font fw-bold text-dark">#${c.id}</span></td>
         <td>${c.term}</td>
         <td class="num-font fw-semibold">${c.amount} 萬</td>
         <td class="num-font text-secondary">${c.rate}%</td>
-        <td class="num-font fw-semibold" style="color: var(--accent-emerald);">${monthlyGain.toLocaleString()}</td>
+        <td class="num-font fw-semibold" style="color: var(--color-emerald);">${c.status === '已合併' ? '-' : monthlyGain.toLocaleString()}</td>
+        <td class="num-font fw-bold" style="color: #166534;">${cumInterest.toLocaleString()} 元</td>
         <td class="num-font text-secondary">${c.startDate}</td>
         <td class="num-font text-secondary">${endDate}</td>
-        <td><span class="status-badge status-neutral num-font">${nextWed}</span></td>
+        <td><span class="num-font text-secondary">${nextWed}</span></td>
         <td>
-          <span class="status-badge ${isUrgent ? 'status-alert' : 'status-neutral'} num-font">
-            ${isUrgent ? '● ' : ''}${c.status === '合約有效' ? daysLeft + ' 天' : '-'}
+          <span class="status-pill ${isUrgent ? 'pill-alert' : 'pill-neutral'} num-font">
+            <span class="status-dot"></span>
+            ${c.status === '合約有效' ? daysLeft + ' 天' : '已結算'}
           </span>
         </td>
         <td>
-          <span class="status-badge ${statusBadgeClass}">
-            ${c.status}
+          <span class="status-pill ${statusPillClass}">
+            <span class="status-dot"></span>${c.status}
           </span>
         </td>
         <td class="text-end">
@@ -603,9 +682,9 @@
       data: {
         labels: pLabels,
         datasets: [{
-          label: '實領入帳 (元)',
+          label: '實領現金 (元)',
           data: pValues,
-          backgroundColor: '#4F46E5',
+          backgroundColor: '#6366F1',
           borderRadius: 6
         }]
       },
@@ -614,11 +693,7 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: {
-            backgroundColor: '#0F172A',
-            padding: 10,
-            cornerRadius: 8
-          }
+          tooltip: { backgroundColor: '#101828', padding: 10, cornerRadius: 8 }
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: '#64748B' } },
@@ -640,7 +715,7 @@
         labels: Object.keys(termMap),
         datasets: [{
           data: Object.values(termMap),
-          backgroundColor: ['#059669', '#4F46E5'],
+          backgroundColor: ['#059669', '#6366F1'],
           borderWidth: 0
         }]
       },
@@ -648,20 +723,18 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: '#64748B', boxWidth: 10, padding: 16 }
-          }
+          legend: { position: 'bottom', labels: { color: '#475467', boxWidth: 10, padding: 16 } }
         },
-        cutout: '72%'
+        cutout: '74%'
       }
     });
   }
 
-  // 6. 批量領息邏輯 (選項 A：純勾選固定現金 + 智能預選)
+  // 6. 批量領息邏輯 (支援補登已合併合約)
   function openBatchPayoutModal() {
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('batch-payout-date').value = todayStr;
+    document.getElementById('show-merged-payout').checked = false;
     renderBatchPayoutItems(todayStr);
     modalBatchPayoutInstance.show();
   }
@@ -675,23 +748,26 @@
     const listContainer = document.getElementById('batch-payout-list');
     listContainer.innerHTML = "";
 
-    const activeContracts = contracts.filter(c => c.status === "合約有效");
+    const showMerged = document.getElementById('show-merged-payout').checked;
+    
+    // 若勾選顯示合併約，則有效約與已合併約一同列出
+    const targetContracts = contracts.filter(c => c.status === "合約有效" || (showMerged && c.status === "已合併"));
 
-    if (activeContracts.length === 0) {
-      listContainer.innerHTML = `<div class="text-center text-secondary py-4">目前無任何生效中的合約。</div>`;
+    if (targetContracts.length === 0) {
+      listContainer.innerHTML = `<div class="text-center text-secondary py-4">無符合可領息條件的合約項目。</div>`;
       updateBatchSummary();
       return;
     }
 
     let eligibleCount = 0;
 
-    activeContracts.forEach(c => {
-      const isEligible = c.startDate <= payoutDateStr; // 智能預選條件：起息日早於或等於入帳日
+    targetContracts.forEach(c => {
+      const isEligible = c.startDate <= payoutDateStr && c.status === "合約有效";
       if (isEligible) eligibleCount++;
       const fixedGain = Math.round(c.amount * 10000 * (c.rate / 100));
 
       const rowDiv = document.createElement('label');
-      rowDiv.className = 'select-item d-flex align-items-center justify-content-between';
+      rowDiv.className = 'selection-card';
       rowDiv.innerHTML = `
         <div class="d-flex align-items-center gap-3">
           <input class="form-check-input payout-checkbox" type="checkbox" 
@@ -700,9 +776,10 @@
                  data-gain="${fixedGain}" 
                  onchange="updateBatchSummary()">
           <div>
-            <span class="status-badge status-neutral num-font fw-bold">契約 ${c.id}</span>
+            <span class="num-font fw-bold text-dark">契約 #${c.id}</span>
             <span class="text-secondary small ms-2">${c.term} | ${c.amount}萬 (${c.rate}%)</span>
-            ${!isEligible ? '<span class="badge bg-light text-muted ms-2 border">未達起息日</span>' : ''}
+            ${c.status === '已合併' ? '<span class="status-pill pill-merged ms-2"><span class="status-dot"></span>已合併(補登)</span>' : ''}
+            ${!isEligible && c.status === '合約有效' ? '<span class="status-pill pill-neutral ms-2">未達起息日</span>' : ''}
           </div>
         </div>
         <div>
@@ -712,7 +789,7 @@
       listContainer.appendChild(rowDiv);
     });
 
-    document.getElementById('check-all-payouts').checked = (eligibleCount === activeContracts.length && activeContracts.length > 0);
+    document.getElementById('check-all-payouts').checked = (eligibleCount === targetContracts.length && targetContracts.length > 0);
     updateBatchSummary();
   }
 
@@ -740,7 +817,7 @@
   function submitBatchPayout() {
     const payoutDate = document.getElementById('batch-payout-date').value;
     if (!payoutDate) {
-      alert("請選擇入帳日期！");
+      alert("請選擇實領入帳日期！");
       return;
     }
 
@@ -768,25 +845,25 @@
     renderApp();
   }
 
-  // 7. 合約合併模組邏輯
+  // 7. 合約合併與加碼邏輯
   function openMergeModal() {
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const container = document.getElementById('merge-contract-list');
     container.innerHTML = "";
 
-    if (activeContracts.length < 2) {
-      alert("目前有效合約少於 2 筆，無法進行合併。");
+    if (activeContracts.length < 1) {
+      alert("目前無任何有效合約可供合併。");
       return;
     }
 
     activeContracts.forEach(c => {
       const item = document.createElement('label');
-      item.className = 'select-item d-flex align-items-center justify-content-between';
+      item.className = 'selection-card';
       item.innerHTML = `
         <div class="d-flex align-items-center gap-3">
           <input class="form-check-input merge-checkbox" type="checkbox" value="${c.id}" data-amount="${c.amount}" onchange="updateMergeSummary()">
           <div>
-            <span class="status-badge status-neutral num-font fw-bold">契約 ${c.id}</span>
+            <span class="num-font fw-bold text-dark">契約 #${c.id}</span>
             <span class="text-secondary small ms-2">${c.term} | 月利率 ${c.rate}%</span>
           </div>
         </div>
@@ -795,6 +872,7 @@
       container.appendChild(item);
     });
 
+    document.getElementById('m-topup').value = 0;
     document.getElementById('m-start').value = new Date().toISOString().split('T')[0];
     updateMergeSummary();
     modalMergeContractInstance.show();
@@ -802,49 +880,56 @@
 
   function updateMergeSummary() {
     const checkboxes = document.querySelectorAll('.merge-checkbox');
-    let sum = 0;
+    let oldSum = 0;
     checkboxes.forEach(cb => {
-      if (cb.checked) sum += Number(cb.dataset.amount);
+      if (cb.checked) oldSum += Number(cb.dataset.amount);
     });
-    document.getElementById('merge-total-amount').innerText = `${sum} 萬元`;
+
+    const topup = Number(document.getElementById('m-topup').value) || 0;
+    const total = oldSum + topup;
+
+    document.getElementById('merge-calc-display').innerText = `舊約 ${oldSum} 萬 ＋ 加碼 ${topup} 萬 ＝ ${total} 萬元`;
   }
 
   function submitMergeContract(e) {
     e.preventDefault();
     const checkboxes = document.querySelectorAll('.merge-checkbox');
     const selectedIds = [];
-    let mergedAmount = 0;
+    let oldSum = 0;
 
     checkboxes.forEach(cb => {
       if (cb.checked) {
         selectedIds.push(cb.value);
-        mergedAmount += Number(cb.dataset.amount);
+        oldSum += Number(cb.dataset.amount);
       }
     });
 
-    if (selectedIds.length < 2) {
-      alert("請至少勾選 2 筆要合併的合約！");
+    const topup = Number(document.getElementById('m-topup').value) || 0;
+    const finalAmount = oldSum + topup;
+
+    if (selectedIds.length === 0 && topup === 0) {
+      alert("請至少選取一張欲合併的合約，或輸入加碼金額！");
       return;
     }
 
     const newId = document.getElementById('m-id').value.trim();
     if (contracts.some(c => c.id === newId)) {
-      alert(`合約序號 ${newId} 已存在，請使用新的序號！`);
+      alert(`合約序號 #${newId} 已存在，請使用新的序號！`);
       return;
     }
 
-    // 1. 將被選取的舊合約標記為「已合併」
+    // 1. 將被合併的舊約標記為「已合併」，歷史累計領息自動保存在系統中
     contracts.forEach(c => {
       if (selectedIds.includes(c.id)) {
         c.status = "已合併";
       }
     });
 
-    // 2. 建立新合約列
+    // 2. 建立新合約
     contracts.push({
       id: newId,
       term: document.getElementById('m-term').value,
-      amount: mergedAmount,
+      amount: finalAmount,
       rate: Number(document.getElementById('m-rate').value),
       startDate: document.getElementById('m-start').value,
       status: "合約有效"
@@ -854,7 +939,7 @@
     modalMergeContractInstance.hide();
     document.getElementById('form-merge').reset();
     renderApp();
-    alert(`🎉 成功完成合約合併！\n原合約 [${selectedIds.join(', ')}] 已封存，新合約 [${newId}] 總額 ${mergedAmount} 萬已啟動。`);
+    alert(`🎉 合約合併完成！\n原合約 [${selectedIds.join(', ')}] 已歸檔，新合約 #${newId} (總額 ${finalAmount} 萬) 已正式建立。`);
   }
 
   // 8. 新增契約與刪除
@@ -889,7 +974,7 @@
     }
   }
 
-  // 9. 備份管理 (JSON)
+  // 9. 備份管理
   function exportData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts }, null, 2));
     const dl = document.createElement('a');
@@ -920,7 +1005,7 @@
   }
 
   function resetToDefault() {
-    if (confirm("確認重設為預設合約與領息資料？所有自訂修改將被清除。")) {
+    if (confirm("確認重設為出廠預設資料？所有自訂修改將被清除。")) {
       contracts = DEFAULT_CONTRACTS;
       payouts = DEFAULT_PAYOUTS;
       saveData();
