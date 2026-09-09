@@ -14,6 +14,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    /* ==========================================================
+       風格 A：Sleek Dark Fintech 規範
+       ========================================================== */
     :root {
       --bg-dark: #0B0F19;
       --card-bg: #151C2C;
@@ -123,7 +126,7 @@
     }
     .btn-purple-glow:hover { background: #6366F1; color: #FFF; }
 
-    /* 表格排版優化：禁止折行、色彩高對比 */
+    /* 表格排版優化：禁止折行、高對比 */
     .table-dark-fintech {
       --bs-table-bg: transparent;
       margin-bottom: 0;
@@ -213,7 +216,7 @@
       50% { opacity: 0.6; }
     }
 
-    /* 日曆選擇器圖示反白發光，全框可點擊 */
+    /* 日曆選擇器全框可點擊，圖示發亮 */
     input[type="date"] {
       cursor: pointer;
     }
@@ -222,7 +225,7 @@
       cursor: pointer;
     }
 
-    /* Modal 內部所有標籤全面高亮清晰 */
+    /* Modal 高亮清晰文字 */
     .modal-content {
       background: #151C2C;
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -455,14 +458,14 @@
   </div>
 </div>
 
-<!-- Modal: 一鍵快速續約 / 部分回金 / 加碼換約對話框 -->
+<!-- Modal: 一鍵快速續約 / 部分回金 / 加碼換約對話框 (預設維持原序號 1) -->
 <div class="modal fade" id="modalRenewContract" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <div>
-          <h5 class="modal-title fw-bold">🔄 合約續約與本金異動 (續跑 / 回金 / 加碼)</h5>
-          <p class="text-secondary small mb-0 mt-1">舊約歷史領息完整封存，生效日自動鎖定到期次週三，支援部分回金換約</p>
+          <h5 class="modal-title fw-bold">🔄 合約續約與本金異動 (支援原序號續跑 / 部分回金)</h5>
+          <p class="text-secondary small mb-0 mt-1">若序號維持不變，歷史累計領息自動接續向下累加</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -473,25 +476,23 @@
           <input type="hidden" id="r-old-amount">
           <input type="hidden" id="r-old-enddate">
 
-          <!-- 舊合約狀態卡 -->
           <div class="p-3 mb-3 rounded-3" style="background: rgba(11, 15, 25, 0.6); border: 1px solid rgba(255,255,255,0.12);">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <span class="fw-bold" style="color: var(--accent-blue);" id="r-display-id">契約 #</span>
-                <span class="text-secondary small ms-2" id="r-display-detail">到期日：2026-10-08 | 原本金：120 萬</span>
+                <span class="text-secondary small ms-2" id="r-display-detail">原到期日：2026-10-08 | 原本金：120 萬</span>
               </div>
               <span class="status-pill pill-active">原合約結算轉換</span>
             </div>
           </div>
 
-          <!-- 本金調整欄位 (支援負數回金，如 -10) -->
           <div class="p-3 mb-3 rounded-3" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3);">
             <div class="row g-3 align-items-center">
               <div class="col-12 col-md-6">
                 <label class="form-label small fw-bold">本金調整額度 (萬元)</label>
                 <input type="number" id="r-adjust-amount" class="form-control" value="0" step="1" oninput="updateRenewSummary()">
                 <div class="small text-secondary mt-1">
-                  💡 說明：維持原額請填 <span class="text-white">0</span>；部分回金請填負數（如 <span class="text-warning">-10</span>）；加碼請填正數（如 <span class="text-success">+20</span>）
+                  💡 說明：原額請填 <span class="text-white">0</span>；部分回金請填負數（如 <span class="text-warning">-10</span>）；加碼請填正數（如 <span class="text-success">+20</span>）
                 </div>
               </div>
               <div class="col-12 col-md-6">
@@ -501,11 +502,10 @@
             </div>
           </div>
 
-          <!-- 新合約條件 -->
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label class="form-label small">新契約序號</label>
-              <input type="text" id="r-new-id" class="form-control" required placeholder="如：1.1 或 8">
+              <label class="form-label small">新契約序號 (可直接維持原序號如 1)</label>
+              <input type="text" id="r-new-id" class="form-control" required placeholder="如：1 或 1.1">
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label small">新約定期限</label>
@@ -535,7 +535,7 @@
   </div>
 </div>
 
-<!-- Modal: 批量領息對話框 (當月可領全領，重複防呆) -->
+<!-- Modal: 批量領息對話框 -->
 <div class="modal fade" id="modalBatchPayout" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -575,14 +575,52 @@
             <span class="text-secondary small">本次實領現金總計：</span>
             <span class="fw-bold fs-5 num-font" style="color: var(--accent-emerald);" id="batch-summary-text">已選 0 筆，總計 0 元</span>
           </div>
-          <button type="button" class="btn btn-action btn-emerald-glow px-4 py-2" onclick="submitBatchPayout()">確認領取入帳</button>
+          <button type="button" class="btn btn-action btn-emerald-glow px-4 py-2" onclick="prepareBatchPayoutConfirmation()">確認領取入帳</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal: 合約合併與加碼對話框 (多約整併) -->
+<!-- Modal: 方案 A - 領息二次防呆確認對話框 -->
+<div class="modal fade" id="modalConfirmPayout" tabindex="-1" style="z-index: 1065;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border: 2px solid var(--accent-amber);">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title fw-bold" style="color: var(--accent-amber);">⚠️ 請再次核對入帳資訊 (防呆確認)</h5>
+          <p class="text-secondary small mb-0 mt-1">若此筆為「預約往後領息」，請特別核對入帳日期是否正確！</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- 核心日期與總額卡 -->
+        <div class="p-3 mb-3 rounded-3" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15);">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-secondary small">實領入帳登記日期：</span>
+            <span class="fw-bold fs-5 num-font" style="color: var(--accent-blue);" id="confirm-payout-date-display">2026-09-09</span>
+          </div>
+          <div id="confirm-date-tag-container" class="mb-2"></div>
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top" style="border-color: rgba(255,255,255,0.1) !important;">
+            <span class="text-secondary small">本次實領現金總額：</span>
+            <span class="fw-bold fs-4 num-font" style="color: var(--accent-emerald);" id="confirm-payout-total-display">0 元</span>
+          </div>
+        </div>
+
+        <!-- 勾選契約清單 -->
+        <label class="form-label small text-secondary mb-1">本次發放明細清單：</label>
+        <div id="confirm-payout-list-display" class="p-3 rounded-3" style="background: rgba(11, 15, 25, 0.6); max-height: 180px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1);"></div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-action w-50 py-2" onclick="backToEditPayoutDate()">🔙 返回修改日期</button>
+          <button type="button" class="btn btn-action btn-emerald-glow w-50 py-2" onclick="finalizeBatchPayout()">✅ 確認已收現金，寫入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 合約合併與加碼對話框 -->
 <div class="modal fade" id="modalMergeContract" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -689,9 +727,9 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V7";
-  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V7";
-  const STORAGE_KEY_TOPUPS = "FUND_TOPUP_LOGS_V7";
+  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V8";
+  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V8";
+  const STORAGE_KEY_TOPUPS = "FUND_TOPUP_LOGS_V8";
 
   const DEFAULT_CONTRACTS = [
     { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
@@ -747,6 +785,10 @@
   let modalMergeContractInstance = null;
   let modalPayoutHistoryInstance = null;
   let modalRenewContractInstance = null;
+  let modalConfirmPayoutInstance = null;
+
+  // 暫存待寫入之領息清單 (供防呆確認視窗使用)
+  let pendingPayoutRecords = [];
 
   // 1. 保證下一個星期三的數學算法
   function calculateNextWednesday(dateStr) {
@@ -767,19 +809,13 @@
     return d.toISOString().split('T')[0];
   }
 
-  // 3. 計算首期起領日 (起息日滿一個月)
-  function calculateFirstEligiblePayoutDate(startDateStr) {
-    const d = new Date(startDateStr);
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().split('T')[0];
-  }
-
-  // 4. 資料初始化
+  // 3. 資料初始化
   function initData() {
     modalBatchPayoutInstance = new bootstrap.Modal(document.getElementById('modalBatchPayout'));
     modalMergeContractInstance = new bootstrap.Modal(document.getElementById('modalMergeContract'));
     modalPayoutHistoryInstance = new bootstrap.Modal(document.getElementById('modalPayoutHistory'));
     modalRenewContractInstance = new bootstrap.Modal(document.getElementById('modalRenewContract'));
+    modalConfirmPayoutInstance = new bootstrap.Modal(document.getElementById('modalConfirmPayout'));
 
     const localC = localStorage.getItem(STORAGE_KEY_CONTRACTS);
     const localP = localStorage.getItem(STORAGE_KEY_PAYOUTS);
@@ -799,7 +835,7 @@
     localStorage.setItem(STORAGE_KEY_TOPUPS, JSON.stringify(topupLogs));
   }
 
-  // 5. 核心畫面渲染
+  // 4. 核心畫面渲染
   function renderApp() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -829,7 +865,6 @@
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const monthlyGain = Math.round(c.amount * 10000 * (c.rate / 100));
 
-      // 檢查是否進入 30 天續約洽談期
       const isNegotiationPeriod = daysLeft <= 30 && daysLeft > 0 && c.status === "合約有效";
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
 
@@ -838,7 +873,7 @@
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
-      // 檢查當月是否未領
+      // 當月是否未領
       const hasCurrentMonthPayout = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && currentYM > startYM;
@@ -887,7 +922,7 @@
     renderCharts(activeContracts);
   }
 
-  // 6. 渲染加碼與資本異動記錄表
+  // 5. 渲染加碼與資本異動記錄表
   function renderTopupLogsTable() {
     const tbody = document.getElementById('topup-log-rows');
     tbody.innerHTML = "";
@@ -905,7 +940,7 @@
         <td class="num-font" style="color: var(--text-muted);">${log.date}</td>
         <td><span class="num-font fw-bold" style="color: var(--accent-blue);">#${log.contractId}</span></td>
         <td class="num-font fw-bold" style="color: ${isNegative ? 'var(--accent-amber)' : 'var(--accent-emerald)'};">
-          ${isNegative ? log.topupAmount : '+' + log.topupAmount} 萬元 ${isNegative ? '(回金)' : '(加碼)'}
+          ${isNegative ? log.topupAmount : '+' + log.topupAmount} 萬元 ${isNegative ? '(回金)' : (Number(log.topupAmount) === 0 ? '(原額續約)' : '(加碼)')}
         </td>
         <td class="num-font" style="color: var(--text-muted);">${log.oldAmount} 萬 ➔ <span class="text-white fw-semibold">${log.newAmount} 萬</span></td>
         <td class="small" style="color: var(--text-secondary);">${log.note || '-'}</td>
@@ -918,14 +953,14 @@
   }
 
   function deleteTopupLog(idx) {
-    if (confirm("確定要刪除這筆資本異動紀錄嗎？(這不會影響合約本金)")) {
+    if (confirm("確定要刪除這筆資本異動紀錄嗎？(這不會影響現有合約本金)")) {
       topupLogs.splice(idx, 1);
       saveData();
       renderTopupLogsTable();
     }
   }
 
-  // 7. 圖表渲染
+  // 6. 圖表渲染
   function renderCharts(activeContracts) {
     const monthlyMap = {};
     payouts.forEach(p => {
@@ -989,7 +1024,7 @@
     });
   }
 
-  // 8. 批量領息模組 (當月全領、跨月首期鎖定、重複防呆)
+  // 7. 批量領息模組 (當月全領、跨月首期鎖定、重複防呆)
   function openBatchPayoutModal() {
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('batch-payout-date').value = todayStr;
@@ -1021,7 +1056,7 @@
 
     targetContracts.forEach(c => {
       const startYM = c.startDate.substring(0, 7);
-      // 跨月判定：若生效月份等於或大於入帳月，首期尚未滿月
+      // 跨月首期鎖定判定：若生效月份等於或大於入帳月，首期尚未滿月
       const isMatured = payoutYM > startYM;
       // 檢查當月是否已經有過領息紀錄 (重複防呆)
       const isAlreadyPaidThisMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
@@ -1083,7 +1118,8 @@
     document.getElementById('batch-summary-text').innerText = `已選 ${totalCount} 筆，總計 ${totalSum.toLocaleString()} 元`;
   }
 
-  function submitBatchPayout() {
+  // 8. 方案 A：領息二次防呆確認攔截
+  function prepareBatchPayoutConfirmation() {
     const payoutDate = document.getElementById('batch-payout-date').value;
     if (!payoutDate) {
       alert("請選擇實領入帳日期！");
@@ -1091,11 +1127,11 @@
     }
 
     const checkboxes = document.querySelectorAll('.payout-checkbox:not(:disabled)');
-    const recordsToAdd = [];
+    pendingPayoutRecords = [];
 
     checkboxes.forEach(cb => {
       if (cb.checked) {
-        recordsToAdd.push({
+        pendingPayoutRecords.push({
           contractId: cb.value,
           date: payoutDate,
           amount: Number(cb.dataset.gain)
@@ -1103,18 +1139,61 @@
       }
     });
 
-    if (recordsToAdd.length === 0) {
+    if (pendingPayoutRecords.length === 0) {
       alert("未勾選任何合約！");
       return;
     }
 
-    recordsToAdd.forEach(r => payouts.push(r));
-    saveData();
-    modalBatchPayoutInstance.hide();
-    renderApp();
+    // 填充確認視窗資訊
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('confirm-payout-date-display').innerText = payoutDate;
+
+    // 日期情境提示標籤
+    const tagContainer = document.getElementById('confirm-date-tag-container');
+    if (payoutDate === todayStr) {
+      tagContainer.innerHTML = `<span class="status-pill pill-warning"><span class="status-dot"></span>⚠️ 目前選擇為「今日日期」，若非今日領取請返回修改！</span>`;
+    } else if (payoutDate > todayStr) {
+      tagContainer.innerHTML = `<span class="status-pill pill-active"><span class="status-dot"></span>📌 預約未來入帳日：${payoutDate}</span>`;
+    } else {
+      tagContainer.innerHTML = `<span class="status-pill pill-neutral"><span class="status-dot"></span>過去補登日期：${payoutDate}</span>`;
+    }
+
+    const totalMoney = pendingPayoutRecords.reduce((sum, r) => sum + r.amount, 0);
+    document.getElementById('confirm-payout-total-display').innerText = `${totalMoney.toLocaleString()} 元`;
+
+    const listDisplay = document.getElementById('confirm-payout-list-display');
+    listDisplay.innerHTML = "";
+    pendingPayoutRecords.forEach(r => {
+      const item = document.createElement('div');
+      item.className = "d-flex justify-content-between align-items-center py-1 border-bottom border-secondary border-opacity-25";
+      item.innerHTML = `
+        <span class="num-font fw-bold" style="color: var(--accent-blue);">契約 #${r.contractId}</span>
+        <span class="num-font text-white">+ ${r.amount.toLocaleString()} 元</span>
+      `;
+      listDisplay.appendChild(item);
+    });
+
+    modalConfirmPayoutInstance.show();
   }
 
-  // 9. 一鍵快速續約 / 部分回金 / 加碼換約模組
+  function backToEditPayoutDate() {
+    modalConfirmPayoutInstance.hide();
+  }
+
+  function finalizeBatchPayout() {
+    if (pendingPayoutRecords.length === 0) return;
+
+    pendingPayoutRecords.forEach(r => payouts.push(r));
+    saveData();
+
+    modalConfirmPayoutInstance.hide();
+    modalBatchPayoutInstance.hide();
+    renderApp();
+    alert(`🎉 實領現金配息入帳成功！\n入帳日期：${pendingPayoutRecords[0].date}\n已記錄 ${pendingPayoutRecords.length} 筆流水帳，儀表板已即時重算。`);
+    pendingPayoutRecords = [];
+  }
+
+  // 9. 一鍵快速續約 / 部分回金 / 原序號續跑模組
   function openRenewModal(idx) {
     const c = contracts[idx];
     const endDate = calculateEndDate(c.startDate, c.term);
@@ -1128,10 +1207,8 @@
     document.getElementById('r-display-id').innerText = `契約 #${c.id}`;
     document.getElementById('r-display-detail').innerText = `原到期日：${endDate} | 原本金：${c.amount} 萬元 | 原利率：${c.rate}%`;
 
-    // 建議新序號 (如 1 建議為 1.1)
-    const parts = String(c.id).split('.');
-    const suggestedId = parts.length === 1 ? `${parts[0]}.1` : `${parts[0]}.${Number(parts[1]) + 1}`;
-    document.getElementById('r-new-id').value = suggestedId;
+    // 預設直接維持原序號 (如 1 號合約直接顯示 1)
+    document.getElementById('r-new-id').value = c.id;
 
     document.getElementById('r-adjust-amount').value = 0;
     document.getElementById('r-new-term').value = c.term;
@@ -1152,7 +1229,7 @@
       document.getElementById('r-calc-amount-display').innerText = `無效 (小於等於0萬)`;
       document.getElementById('r-calc-amount-display').style.color = "var(--accent-rose)";
     } else {
-      document.getElementById('r-calc-amount-display').innerText = `${newTotal} 萬元 (${adjust < 0 ? '回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續跑')})`;
+      document.getElementById('r-calc-amount-display').innerText = `${newTotal} 萬元 (${adjust < 0 ? '回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續約續跑')})`;
       document.getElementById('r-calc-amount-display').style.color = "var(--accent-blue)";
     }
   }
@@ -1160,7 +1237,7 @@
   function submitRenewContract(e) {
     e.preventDefault();
     const idx = Number(document.getElementById('r-old-index').value);
-    const oldId = document.getElementById('r-old-id').value;
+    const oldId = String(document.getElementById('r-old-id').value).trim();
     const oldAmount = Number(document.getElementById('r-old-amount').value);
     const adjust = Number(document.getElementById('r-adjust-amount').value) || 0;
     const newTotal = oldAmount + adjust;
@@ -1170,9 +1247,12 @@
       return;
     }
 
-    const newId = document.getElementById('r-new-id').value.trim();
-    if (contracts.some(c => c.id === newId)) {
-      alert(`合約序號 #${newId} 已存在，請使用不同序號！`);
+    const newId = String(document.getElementById('r-new-id').value).trim();
+
+    // 檢查是否有與「其他有效合約」衝突的序號
+    const isConflict = contracts.some((c, i) => i !== idx && c.status === "合約有效" && String(c.id) === newId);
+    if (isConflict) {
+      alert(`合約序號 #${newId} 已存在於另一張進行中的合約，請使用不同序號！`);
       return;
     }
 
@@ -1181,42 +1261,48 @@
     const newStart = document.getElementById('r-new-start').value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    // 1. 舊約除役封存
-    let oldStatus = "已期滿續約";
-    if (adjust < 0) oldStatus = "部分回金換約";
-    if (adjust > 0) oldStatus = "加碼換約";
-    contracts[idx].status = oldStatus;
+    // 核心處理：若序號維持不變 (如 1 續跑為 1)，直接在原地平滑更新，歷史領息無縫承接！
+    if (newId === oldId) {
+      contracts[idx].term = newTerm;
+      contracts[idx].amount = newTotal;
+      contracts[idx].rate = newRate;
+      contracts[idx].startDate = newStart;
+      contracts[idx].status = "合約有效";
+    } else {
+      // 若更換為新序號 (如由 1 改為 1.1 或其他)，舊合約封存歸檔，建立新合約列
+      let oldStatus = "已期滿續約";
+      if (adjust < 0) oldStatus = "部分回金換約";
+      if (adjust > 0) oldStatus = "加碼換約";
+      contracts[idx].status = oldStatus;
 
-    // 2. 建立新合約
-    contracts.push({
-      id: newId,
-      term: newTerm,
-      amount: newTotal,
-      rate: newRate,
-      startDate: newStart,
-      status: "合約有效"
-    });
-
-    // 3. 記錄資本異動日誌 (若有回金或加碼)
-    if (adjust !== 0) {
-      topupLogs.push({
-        id: `TOP-${Date.now()}`,
-        date: newStart,
-        contractId: newId,
-        topupAmount: adjust,
-        oldAmount: oldAmount,
-        newAmount: newTotal,
-        note: userNote || `由 #${oldId} 換約 (${adjust < 0 ? '部分回金 ' + Math.abs(adjust) + ' 萬' : '加碼 ' + adjust + ' 萬'})`
+      contracts.push({
+        id: newId,
+        term: newTerm,
+        amount: newTotal,
+        rate: newRate,
+        startDate: newStart,
+        status: "合約有效"
       });
     }
+
+    // 記錄至加碼與資本異動歷史紀錄
+    topupLogs.push({
+      id: `TOP-${Date.now()}`,
+      date: newStart,
+      contractId: newId,
+      topupAmount: adjust,
+      oldAmount: oldAmount,
+      newAmount: newTotal,
+      note: userNote || `契約 #${oldId} ${newId === oldId ? '續跑' : '換約至 #' + newId} (${adjust < 0 ? '部分回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續約')})`
+    });
 
     saveData();
     modalRenewContractInstance.hide();
     renderApp();
-    alert(`🎉 換約成功！\n原合約 #${oldId} 已封存歸檔，新合約 #${newId} (總額 ${newTotal} 萬) 已正式建立！`);
+    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並生效，歷史累計領息將持續累加！`);
   }
 
-  // 10. 合約合併模組
+  // 10. 多約合併模組
   function openMergeModal() {
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const container = document.getElementById('merge-contract-list');
@@ -1285,8 +1371,8 @@
     }
 
     const newId = document.getElementById('m-id').value.trim();
-    if (contracts.some(c => c.id === newId)) {
-      alert(`合約序號 #${newId} 已存在，請使用新的序號！`);
+    if (contracts.some(c => c.status === "合約有效" && c.id === newId)) {
+      alert(`有效契約序號 #${newId} 已存在，請使用不同序號！`);
       return;
     }
 
@@ -1389,12 +1475,12 @@
     }
   }
 
-  // 12. 新增與刪除合約
+  // 12. 新增合約與刪除合約
   document.getElementById('form-contract').addEventListener('submit', function(e) {
     e.preventDefault();
     const newId = document.getElementById('c-id').value.trim();
-    if (contracts.some(c => c.id === newId)) {
-      alert("此契約序號已存在！");
+    if (contracts.some(c => c.status === "合約有效" && c.id === newId)) {
+      alert("已有同序號之有效契約存在！");
       return;
     }
 
