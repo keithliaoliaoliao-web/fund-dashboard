@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>私募基金個人投資管理系統</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .kpi-card { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
+    .kpi-value { font-size: 1.8rem; font-weight: 700; }
+    .table-container { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
+    .warning-expire { background-color: #ffe6e6 !important; color: #dc3545; font-weight: bold; }
+  </style>
+</head>
+<body class="py-4">
+
+<div class="container-fluid px-4">
+  <!-- 頁頭與操作按鈕 -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+      <h2 class="fw-bold text-dark mb-1">💼 私募基金個人投資儀表板</h2>
+      <span class="text-muted" id="update-date">系統載入中...</span>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddContract">➕ 新增合約</button>
+      <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAddPayout">💰 記錄領息</button>
+      <button class="btn btn-outline-secondary" onclick="exportData()">💾 匯出備份</button>
+      <button class="btn btn-outline-secondary" onclick="document.getElementById('file-import').click()">📂 匯入備份</button>
+      <input type="file" id="file-import" class="d-none" accept=".json" onchange="importData(event)">
+      <button class="btn btn-outline-danger btn-sm" onclick="resetToDefault()">重設預設資料</button>
+    </div>
+  </div>
+
+  <!-- 四大核心 KPI 卡片 -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi-card bg-primary text-white p-3">
+        <div class="card-body">
+          <h6 class="text-white-50">💰 有效在約總本金</h6>
+          <div class="kpi-value" id="kpi-principal">0 萬</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi-card bg-success text-white p-3">
+        <div class="card-body">
+          <h6 class="text-white-50">📈 本月預計現金流</h6>
+          <div class="kpi-value" id="kpi-cashflow">0 元</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi-card bg-info text-white p-3">
+        <div class="card-body">
+          <h6 class="text-white-50">🏦 歷史累計已領息</h6>
+          <div class="kpi-value" id="kpi-interest">0 萬</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi-card bg-secondary text-white p-3">
+        <div class="card-body">
+          <h6 class="text-white-50">📑 生效中合約數</h6>
+          <div class="kpi-value" id="kpi-count">0 筆</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 圖表視覺化區 -->
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-lg-7">
+      <div class="card kpi-card p-3">
+        <h5 class="fw-bold mb-3">📊 每月入帳配息走勢 (元)</h5>
+        <div style="position: relative; height: 300px;">
+          <canvas id="chart-payouts"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-5">
+      <div class="card kpi-card p-3">
+        <h5 class="fw-bold mb-3">🥧 合約期長配置比例</h5>
+        <div style="position: relative; height: 300px;">
+          <canvas id="chart-terms"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 合約監控清單 -->
+  <div class="table-container mb-4">
+    <h5 class="fw-bold mb-3">⏳ 合約到期與回金排程監控</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>合約序號</th>
+            <th>長度</th>
+            <th>金額 (萬)</th>
+            <th>月利率 %</th>
+            <th>月盈餘 (元)</th>
+            <th>生效日</th>
+            <th>合約到期日</th>
+            <th>續約/回金生效日 (保證週三)</th>
+            <th>剩餘天數</th>
+            <th>狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="contract-rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 新增合約對話框 -->
+<div class="modal fade" id="modalAddContract" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">新增投資合約</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-contract">
+          <div class="mb-2">
+            <label class="form-label">合約序號 / 編號</label>
+            <input type="text" id="c-id" class="form-control" required placeholder="例如：8 或 5.1">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">合約長度</label>
+            <select id="c-term" class="form-select">
+              <option value="半年">半年 (6個月)</option>
+              <option value="一年">一年 (12個月)</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">投資金額 (萬)</label>
+            <input type="number" id="c-amount" class="form-control" required min="1" step="1" placeholder="例如：100">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">月盈餘利率 (%)</label>
+            <input type="number" id="c-rate" class="form-control" required min="0.1" step="0.1" placeholder="例如：1.5">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">生效日起算日</label>
+            <input type="date" id="c-start" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 mt-3">確認儲存合約</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 記錄領息對話框 -->
+<div class="modal fade" id="modalAddPayout" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">登記利息入帳</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-payout">
+          <div class="mb-2">
+            <label class="form-label">對應合約序號</label>
+            <select id="p-id" class="form-select" required></select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">入帳日期</label>
+            <input type="date" id="p-date" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">實領金額 (元)</label>
+            <input type="number" id="p-amount" class="form-control" required min="1" step="1">
+          </div>
+          <button type="submit" class="btn btn-success w-100 mt-3">儲存領息紀錄</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // 核心資料庫結構 (保存在瀏覽器 localStorage 中)
+  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA";
+  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA";
+
+  // 初始範本資料
+  const DEFAULT_CONTRACTS = [
+    { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
+    { id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
+    { id: "3", term: "一年", amount: 150, rate: 1.8, startDate: "2026-05-27", status: "合約有效" },
+    { id: "4", term: "半年", amount: 100, rate: 1.4, startDate: "2026-06-17", status: "合約有效" },
+    { id: "5", term: "一年", amount: 70, rate: 1.8, startDate: "2026-07-01", status: "合約有效" },
+    { id: "6", term: "半年", amount: 40, rate: 1.2, startDate: "2026-08-19", status: "合約有效" },
+    { id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
+  ];
+
+  const DEFAULT_PAYOUTS = [
+    { contractId: "1", date: "2026-06-18", amount: 14400 },
+    { contractId: "2", date: "2026-06-18", amount: 3600 },
+    { contractId: "3", date: "2026-06-18", amount: 27000 },
+    { contractId: "4", date: "2026-06-18", amount: 14000 },
+    { contractId: "5", date: "2026-06-18", amount: 8500 },
+    { contractId: "6", date: "2026-06-18", amount: 4800 },
+    { contractId: "7", date: "2026-06-18", amount: 16000 }
+  ];
+
+  let contracts = [];
+  let payouts = [];
+  let chartPayoutsInstance = null;
+  let chartTermsInstance = null;
+
+  // 1. 保證下一個週三的演算法
+  function calculateNextWednesday(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    const day = d.getDay(); // 0(週日) ~ 6(週六)
+    const w = (day === 0) ? 7 : day; // 1(週一) ~ 7(週日)
+    const delta = ((9 - w) % 7) + 1;
+    d.setDate(d.getDate() + delta);
+    return d.toISOString().split('T')[0];
+  }
+
+  // 2. 合約到期日推算 (月數累加)
+  function calculateEndDate(startDateStr, term) {
+    const d = new Date(startDateStr);
+    const months = (term === "半年") ? 6 : 12;
+    d.setMonth(d.getMonth() + months);
+    return d.toISOString().split('T')[0];
+  }
+
+  // 3. 資料初始化
+  function initData() {
+    const localC = localStorage.getItem(STORAGE_KEY_CONTRACTS);
+    const localP = localStorage.getItem(STORAGE_KEY_PAYOUTS);
+    contracts = localC ? JSON.parse(localC) : DEFAULT_CONTRACTS;
+    payouts = localP ? JSON.parse(localP) : DEFAULT_PAYOUTS;
+    saveData();
+    renderApp();
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY_CONTRACTS, JSON.stringify(contracts));
+    localStorage.setItem(STORAGE_KEY_PAYOUTS, JSON.stringify(payouts));
+  }
+
+  // 4. 畫面渲染
+  function renderApp() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    document.getElementById('update-date').innerText = `基準日期：${today.toISOString().split('T')[0]}`;
+
+    // KPI 計算
+    const activeContracts = contracts.filter(c => c.status === "合約有效");
+    const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
+    const monthlyCashflow = activeContracts.reduce((sum, c) => sum + (c.amount * 10000 * (c.rate / 100)), 0);
+    const totalInterest = payouts.reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
+
+    document.getElementById('kpi-principal').innerText = `${totalPrincipal.toLocaleString()} 萬`;
+    document.getElementById('kpi-cashflow').innerText = `${Math.round(monthlyCashflow).toLocaleString()} 元`;
+    document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
+    document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
+
+    // 渲染表格
+    const tbody = document.getElementById('contract-rows');
+    tbody.innerHTML = "";
+    const pSelect = document.getElementById('p-id');
+    pSelect.innerHTML = "";
+
+    contracts.forEach((c, index) => {
+      const endDate = calculateEndDate(c.startDate, c.term);
+      const nextWed = calculateNextWednesday(endDate);
+      const diffTime = new Date(endDate).getTime() - today.getTime();
+      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const monthlyGain = Math.round(c.amount * 10000 * (c.rate / 100));
+      const isUrgent = daysLeft <= 45 && c.status === "合約有效";
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${c.id}</strong></td>
+        <td>${c.term}</td>
+        <td>${c.amount} 萬</td>
+        <td>${c.rate}%</td>
+        <td>${monthlyGain.toLocaleString()}</td>
+        <td>${c.startDate}</td>
+        <td>${endDate}</td>
+        <td><span class="badge bg-light text-dark border">${nextWed}</span></td>
+        <td class="${isUrgent ? 'warning-expire' : ''}">${daysLeft} 天</td>
+        <td><span class="badge ${c.status === '合約有效' ? 'bg-success' : 'bg-secondary'}">${c.status}</span></td>
+        <td>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteContract(${index})">刪除</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+
+      if (c.status === "合約有效") {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `合約 ${c.id} (${c.amount}萬 - ${c.rate}%)`;
+        pSelect.appendChild(opt);
+      }
+    });
+
+    renderCharts(activeContracts);
+  }
+
+  // 5. 圖表繪製
+  function renderCharts(activeContracts) {
+    // 柱狀圖：每月領息
+    const monthlyMap = {};
+    payouts.forEach(p => {
+      monthlyMap[p.date] = (monthlyMap[p.date] || 0) + Number(p.amount);
+    });
+    const pLabels = Object.keys(monthlyMap).sort();
+    const pValues = pLabels.map(k => monthlyMap[k]);
+
+    if (chartPayoutsInstance) chartPayoutsInstance.destroy();
+    const ctxBar = document.getElementById('chart-payouts').getContext('2d');
+    chartPayoutsInstance = new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: pLabels,
+        datasets: [{ label: '入帳配息 (元)', data: pValues, backgroundColor: '#0d6efd', borderRadius: 6 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // 圓餅圖：期長分佈
+    const termMap = {};
+    activeContracts.forEach(c => {
+      termMap[c.term] = (termMap[c.term] || 0) + Number(c.amount);
+    });
+
+    if (chartTermsInstance) chartTermsInstance.destroy();
+    const ctxPie = document.getElementById('chart-terms').getContext('2d');
+    chartTermsInstance = new Chart(ctxPie, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(termMap),
+        datasets: [{ data: Object.values(termMap), backgroundColor: ['#198754', '#fd7e14'] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  // 6. 表單事件處理
+  document.getElementById('form-contract').addEventListener('submit', function(e) {
+    e.preventDefault();
+    contracts.push({
+      id: document.getElementById('c-id').value.trim(),
+      term: document.getElementById('c-term').value,
+      amount: Number(document.getElementById('c-amount').value),
+      rate: Number(document.getElementById('c-rate').value),
+      startDate: document.getElementById('c-start').value,
+      status: "合約有效"
+    });
+    saveData();
+    bootstrap.Modal.getInstance(document.getElementById('modalAddContract')).hide();
+    this.reset();
+    renderApp();
+  });
+
+  document.getElementById('form-payout').addEventListener('submit', function(e) {
+    e.preventDefault();
+    payouts.push({
+      contractId: document.getElementById('p-id').value,
+      date: document.getElementById('p-date').value,
+      amount: Number(document.getElementById('p-amount').value)
+    });
+    saveData();
+    bootstrap.Modal.getInstance(document.getElementById('modalAddPayout')).hide();
+    this.reset();
+    renderApp();
+  });
+
+  function deleteContract(idx) {
+    if (confirm(`確定要刪除此筆合約嗎？`)) {
+      contracts.splice(idx, 1);
+      saveData();
+      renderApp();
+    }
+  }
+
+  // 7. 備份匯出與匯入
+  function exportData() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts }, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `私募基金備份_${new Date().toISOString().split('T')[0]}.json`);
+    dlAnchor.click();
+  }
+
+  function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (imported.contracts && imported.payouts) {
+          contracts = imported.contracts;
+          payouts = imported.payouts;
+          saveData();
+          renderApp();
+          alert("資料匯入成功！");
+        }
+      } catch (err) {
+        alert("匯入失敗：檔案格式不正確。");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function resetToDefault() {
+    if (confirm("確定要重設回預設合約與領息資料嗎？")) {
+      contracts = DEFAULT_CONTRACTS;
+      payouts = DEFAULT_PAYOUTS;
+      saveData();
+      renderApp();
+    }
+  }
+
+  window.onload = initData;
+</script>
+</body>
+</html>
