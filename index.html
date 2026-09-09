@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>私人資產管理終端 | 雲端同步版</title>
+  <title>私人資產管理終端 | 純雲端同步版</title>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Google Firebase SDK (官方免費雲端資料庫模組) -->
+  <!-- Google Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -243,12 +243,12 @@
 <body class="py-4">
 
 <div class="container-fluid px-lg-5 px-3">
-  <!-- 頁頭控制列 (含雲端同步狀態標籤) -->
+  <!-- 頁頭控制列 -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 gap-3">
     <div>
       <div class="d-flex align-items-center gap-2">
         <h3 class="fw-bold mb-0" style="letter-spacing: -0.03em;">💼 私募基金投資終端</h3>
-        <span class="status-pill pill-active" id="cloud-sync-status"><span class="status-dot"></span>本地快取模式</span>
+        <span class="status-pill pill-active" id="cloud-sync-status"><span class="status-dot"></span>雲端連線中...</span>
       </div>
       <p class="text-secondary small mb-0 mt-1" id="update-date">系統基期加載中...</p>
     </div>
@@ -546,7 +546,7 @@
   </div>
 </div>
 
-<!-- Modal: 方案 A - 領息二次防呆確認對話框 -->
+<!-- Modal: 領息二次防呆確認對話框 -->
 <div class="modal fade" id="modalConfirmPayout" tabindex="-1" style="z-index: 1065;">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border: 2px solid var(--accent-amber);">
@@ -690,14 +690,7 @@
 
 <script>
   // ==========================================
-  // 核心資料庫金鑰 (本地快取)
-  // ==========================================
-  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V9";
-  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V9";
-  const STORAGE_KEY_TOPUPS = "FUND_TOPUP_LOGS_V9";
-
-// ==========================================
-  // 【已啟用】Google Firebase 雲端資料庫正式設定
+  // Google Firebase 雲端金鑰設定
   // ==========================================
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyC1LyKi2Vw2hEqoMKay8QUaUj8phnv8hds",
@@ -710,10 +703,7 @@
     measurementId: "G-TD240CP07T"
   };
 
-  let isFirebaseEnabled = false;
-  let dbRef = null;
-
-  // 預設 7 筆合約
+  // 預設 7 筆合約種子資料
   const DEFAULT_CONTRACTS = [
     { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
     { id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
@@ -724,7 +714,7 @@
     { id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
   ];
 
-  // 預設領息明細
+  // 預設領息流水帳種子資料 (6月~9月)
   const DEFAULT_PAYOUTS = [
     { contractId: "1", date: "2026-06-18", amount: 14400 },
     { contractId: "2", date: "2026-06-18", amount: 3600 },
@@ -756,6 +746,7 @@
     { contractId: "7", date: "2026-09-19", amount: 16000 }
   ];
 
+  // 預設加碼紀錄種子資料
   const DEFAULT_TOPUPS = [
     { id: "TOP-1", date: "2026-06-29", contractId: "5", topupAmount: 20, oldAmount: 50, newAmount: 70, note: "加碼20萬，利率調為1.8%" }
   ];
@@ -763,6 +754,7 @@
   let contracts = [];
   let payouts = [];
   let topupLogs = [];
+  let dbRef = null;
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
   let modalBatchPayoutInstance = null;
@@ -772,7 +764,6 @@
   let modalConfirmPayoutInstance = null;
   let pendingPayoutRecords = [];
 
-  // 1. 保證下一個星期三的數學算法
   function calculateNextWednesday(dateStr) {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "-";
@@ -783,7 +774,6 @@
     return d.toISOString().split('T')[0];
   }
 
-  // 2. 合約到期日推算
   function calculateEndDate(startDateStr, term) {
     const d = new Date(startDateStr);
     const months = (term === "半年") ? 6 : 12;
@@ -791,7 +781,7 @@
     return d.toISOString().split('T')[0];
   }
 
-  // 3. 資料初始化 (支援雲端與本地自動切換)
+  // 純雲端初始化引擎
   function initData() {
     modalBatchPayoutInstance = new bootstrap.Modal(document.getElementById('modalBatchPayout'));
     modalMergeContractInstance = new bootstrap.Modal(document.getElementById('modalMergeContract'));
@@ -799,68 +789,62 @@
     modalRenewContractInstance = new bootstrap.Modal(document.getElementById('modalRenewContract'));
     modalConfirmPayoutInstance = new bootstrap.Modal(document.getElementById('modalConfirmPayout'));
 
-    // 檢查是否啟用 Firebase 雲端資料庫
-    if (FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL) {
-      try {
+    try {
+      if (!firebase.apps.length) {
         firebase.initializeApp(FIREBASE_CONFIG);
-        dbRef = firebase.database().ref("fund_dashboard_data");
-        isFirebaseEnabled = true;
-
-        const statusPill = document.getElementById('cloud-sync-status');
-        statusPill.innerHTML = `<span class="status-dot"></span>☁️ 雲端同步連線中`;
-        statusPill.className = "status-pill pill-active";
-
-        // 監聽雲端即時變化 (公司/家裡電腦雙向同步)
-        dbRef.on("value", (snapshot) => {
-          const cloudData = snapshot.val();
-          if (cloudData) {
-            contracts = cloudData.contracts || [];
-            payouts = cloudData.payouts || [];
-            topupLogs = cloudData.topupLogs || [];
-            saveLocalOnly();
-            renderApp();
-          } else {
-            // 雲端為空，推送初始資料
-            pushToCloud();
-          }
-        });
-        return;
-      } catch (err) {
-        console.warn("Firebase 啟動失敗，切換為本地模式：", err);
       }
+      dbRef = firebase.database().ref("fund_dashboard_data");
+
+      const statusPill = document.getElementById('cloud-sync-status');
+      statusPill.innerHTML = `<span class="status-dot"></span>🟢 雲端同步連線中`;
+      statusPill.className = "status-pill pill-active";
+
+      // 即時監聽 Firebase
+      dbRef.on("value", (snapshot) => {
+        const cloudData = snapshot.val();
+        
+        // 核心修復：若雲端為空或合約數為 0，自動上傳種子資料並即時渲染
+        if (!cloudData || !cloudData.contracts || cloudData.contracts.length === 0) {
+          contracts = JSON.parse(JSON.stringify(DEFAULT_CONTRACTS));
+          payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
+          topupLogs = JSON.parse(JSON.stringify(DEFAULT_TOPUPS));
+          
+          dbRef.set({
+            contracts: contracts,
+            payouts: payouts,
+            topupLogs: topupLogs
+          });
+          renderApp();
+        } else {
+          // 雲端已有數據，以雲端為唯一真實來源
+          contracts = cloudData.contracts || [];
+          payouts = cloudData.payouts || [];
+          topupLogs = cloudData.topupLogs || [];
+          renderApp();
+        }
+      }, (error) => {
+        console.error("Firebase 連線受阻：", error);
+        alert("雲端讀取失敗，請確認 Firebase Rules 是否已設為 true！\n" + error.message);
+      });
+
+    } catch (err) {
+      console.error("Firebase 啟動失敗：", err);
+      alert("Firebase 啟動失敗：" + err.message);
     }
-
-    // 本地快取載入模式
-    const localC = localStorage.getItem(STORAGE_KEY_CONTRACTS);
-    const localP = localStorage.getItem(STORAGE_KEY_PAYOUTS);
-    const localT = localStorage.getItem(STORAGE_KEY_TOPUPS);
-
-    contracts = localC ? JSON.parse(localC) : DEFAULT_CONTRACTS;
-    payouts = localP ? JSON.parse(localP) : DEFAULT_PAYOUTS;
-    topupLogs = localT ? JSON.parse(localT) : DEFAULT_TOPUPS;
-
-    saveData();
-    renderApp();
   }
 
-  function saveLocalOnly() {
-    localStorage.setItem(STORAGE_KEY_CONTRACTS, JSON.stringify(contracts));
-    localStorage.setItem(STORAGE_KEY_PAYOUTS, JSON.stringify(payouts));
-    localStorage.setItem(STORAGE_KEY_TOPUPS, JSON.stringify(topupLogs));
-  }
-
-  function pushToCloud() {
-    if (isFirebaseEnabled && dbRef) {
-      dbRef.set({ contracts, payouts, topupLogs });
-    }
-  }
-
+  // 儲存邏輯：直接同步雲端
   function saveData() {
-    saveLocalOnly();
-    pushToCloud();
+    if (dbRef) {
+      dbRef.set({
+        contracts: contracts,
+        payouts: payouts,
+        topupLogs: topupLogs
+      });
+    }
   }
 
-  // 4. 核心畫面渲染
+  // 核心畫面渲染
   function renderApp() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -879,7 +863,6 @@
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 渲染合約監控主表
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
 
@@ -945,7 +928,6 @@
     renderCharts(activeContracts);
   }
 
-  // 5. 渲染加碼與資本異動記錄表
   function renderTopupLogsTable() {
     const tbody = document.getElementById('topup-log-rows');
     tbody.innerHTML = "";
@@ -983,7 +965,6 @@
     }
   }
 
-  // 6. 圖表渲染
   function renderCharts(activeContracts) {
     const monthlyMap = {};
     payouts.forEach(p => {
@@ -1047,7 +1028,6 @@
     });
   }
 
-  // 7. 批量領息清單渲染
   function openBatchPayoutModal() {
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('batch-payout-date').value = todayStr;
@@ -1138,7 +1118,6 @@
     document.getElementById('batch-summary-text').innerText = `已選 ${totalCount} 筆，總計 ${totalSum.toLocaleString()} 元`;
   }
 
-  // 8. 方案 A：領息二次防呆確認攔截
   function prepareBatchPayoutConfirmation() {
     const payoutDate = document.getElementById('batch-payout-date').value;
     if (!payoutDate) {
@@ -1207,11 +1186,10 @@
     modalConfirmPayoutInstance.hide();
     modalBatchPayoutInstance.hide();
     renderApp();
-    alert(`🎉 實領現金配息入帳成功！\n入帳日期：${pendingPayoutRecords[0].date}\n已記錄 ${pendingPayoutRecords.length} 筆流水帳，儀表板已即時重算。`);
+    alert(`🎉 實領現金配息入帳成功！\n入帳日期：${pendingPayoutRecords[0].date}\n已記錄 ${pendingPayoutRecords.length} 筆流水帳，雲端已即時同步更新。`);
     pendingPayoutRecords = [];
   }
 
-  // 9. 一鍵快速續約 / 部分回金 / 原序號續跑模組
   function openRenewModal(idx) {
     const c = contracts[idx];
     const endDate = calculateEndDate(c.startDate, c.term);
@@ -1225,9 +1203,7 @@
     document.getElementById('r-display-id').innerText = `契約 #${c.id}`;
     document.getElementById('r-display-detail').innerText = `原到期日：${endDate} | 原本金：${c.amount} 萬元 | 原利率：${c.rate}%`;
 
-    // 預設直接維持原序號 (如 1 號合約直接顯示 1)
     document.getElementById('r-new-id').value = c.id;
-
     document.getElementById('r-adjust-amount').value = 0;
     document.getElementById('r-new-term').value = c.term;
     document.getElementById('r-new-rate').value = c.rate;
@@ -1277,7 +1253,6 @@
     const newStart = document.getElementById('r-new-start').value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    // 序號維持不變 (如 1 續跑為 1)，原地平滑更新，歷史領息無縫承接
     if (newId === oldId) {
       contracts[idx].term = newTerm;
       contracts[idx].amount = newTotal;
@@ -1313,10 +1288,9 @@
     saveData();
     modalRenewContractInstance.hide();
     renderApp();
-    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並生效，歷史累計領息將持續累加！`);
+    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！`);
   }
 
-  // 10. 多約合併模組
   function openMergeModal() {
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const container = document.getElementById('merge-contract-list');
@@ -1424,10 +1398,9 @@
     modalMergeContractInstance.hide();
     document.getElementById('form-merge').reset();
     renderApp();
-    alert(`🎉 合約合併完成！\n舊約已封存歸檔，新約 #${newId} (總額 ${finalAmount} 萬) 已建立。`);
+    alert(`🎉 合約合併完成！\n舊約已封存歸檔，新約 #${newId} (總額 ${finalAmount} 萬) 已同步至雲端。`);
   }
 
-  // 11. 歷史領息細項彈窗與單筆刪除
   function openPayoutHistoryModal() {
     const filterSelect = document.getElementById('history-filter-contract');
     filterSelect.innerHTML = `<option value="ALL">全部契約</option>`;
@@ -1481,7 +1454,7 @@
   }
 
   function deletePayoutRecord(origIdx) {
-    if (confirm("確定要撤銷這筆領息紀錄嗎？儀表板將即時重算。")) {
+    if (confirm("確定要撤銷這筆領息紀錄嗎？雲端資料庫將即時重算。")) {
       payouts.splice(origIdx, 1);
       saveData();
       renderPayoutHistoryTable();
@@ -1489,7 +1462,6 @@
     }
   }
 
-  // 12. 新增與刪除合約
   document.getElementById('form-contract').addEventListener('submit', function(e) {
     e.preventDefault();
     const newId = document.getElementById('c-id').value.trim();
@@ -1521,7 +1493,6 @@
     }
   }
 
-  // 13. 備份管理 (JSON)
   function exportData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts, topupLogs }, null, 2));
     const dl = document.createElement('a');
@@ -1543,7 +1514,7 @@
           topupLogs = imported.topupLogs || [];
           saveData();
           renderApp();
-          alert("資料庫還原成功！");
+          alert("資料還原成功，並已全數同步至雲端資料庫！");
         }
       } catch (err) {
         alert("還原失敗：JSON 格式無效。");
