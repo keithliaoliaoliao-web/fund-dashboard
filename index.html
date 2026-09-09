@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>私人資產管理終端 | Sleek Dark Fintech</title>
+  <title>私人資產管理終端 | 雲端同步版</title>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,11 +12,11 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Firebase SDK (官方免費雲端資料庫模組) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    /* ==========================================================
-       風格 A：Sleek Dark Fintech 規範
-       ========================================================== */
     :root {
       --bg-dark: #0B0F19;
       --card-bg: #151C2C;
@@ -41,14 +41,12 @@
       line-height: 1.5;
     }
 
-    /* 數字等寬對齊 */
     .num-font {
       font-variant-numeric: tabular-nums;
       font-feature-settings: "tnum";
       letter-spacing: -0.01em;
     }
 
-    /* 暗黑科技微光卡片 */
     .dark-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -57,14 +55,9 @@
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
       transition: border-color 0.2s ease, transform 0.2s ease;
     }
+    .dark-card:hover { border-color: rgba(255, 255, 255, 0.2); }
 
-    .dark-card:hover {
-      border-color: rgba(255, 255, 255, 0.2);
-    }
-
-    .clickable-card {
-      cursor: pointer;
-    }
+    .clickable-card { cursor: pointer; }
     .clickable-card:hover {
       transform: translateY(-2px);
       border-color: var(--accent-amber);
@@ -85,7 +78,6 @@
       margin-top: 6px;
     }
 
-    /* 按鈕樣式 */
     .btn-action {
       background: #1E293B;
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -108,30 +100,23 @@
       color: #FFF;
       box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
     }
-    .btn-blue-glow:hover { background: #0284C7; color: #FFF; }
-
     .btn-emerald-glow {
       background: linear-gradient(135deg, #059669, #047857);
       border: none;
       color: #FFF;
       box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
     }
-    .btn-emerald-glow:hover { background: #059669; color: #FFF; }
-
     .btn-purple-glow {
       background: linear-gradient(135deg, #6366F1, #4F46E5);
       border: none;
       color: #FFF;
       box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
     }
-    .btn-purple-glow:hover { background: #6366F1; color: #FFF; }
 
-    /* 表格排版優化：禁止折行、高對比 */
     .table-dark-fintech {
       --bs-table-bg: transparent;
       margin-bottom: 0;
     }
-
     .table-dark-fintech th {
       color: #CBD5E1 !important;
       font-size: 0.8rem;
@@ -143,7 +128,6 @@
       background: rgba(11, 15, 25, 0.6);
       white-space: nowrap;
     }
-
     .table-dark-fintech td {
       vertical-align: middle;
       padding: 16px 16px;
@@ -152,12 +136,8 @@
       color: var(--text-main);
       white-space: nowrap;
     }
+    .table-dark-fintech tbody tr:hover { background-color: rgba(255, 255, 255, 0.03); }
 
-    .table-dark-fintech tbody tr:hover {
-      background-color: rgba(255, 255, 255, 0.03);
-    }
-
-    /* 狀態標籤 */
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -168,12 +148,7 @@
       font-weight: 500;
       white-space: nowrap;
     }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
 
     .pill-active {
       background: rgba(16, 185, 129, 0.15);
@@ -216,16 +191,12 @@
       50% { opacity: 0.6; }
     }
 
-    /* 日曆選擇器全框可點擊，圖示發亮 */
-    input[type="date"] {
-      cursor: pointer;
-    }
+    input[type="date"] { cursor: pointer; }
     input[type="date"]::-webkit-calendar-picker-indicator {
       filter: invert(1);
       cursor: pointer;
     }
 
-    /* Modal 高亮清晰文字 */
     .modal-content {
       background: #151C2C;
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -265,26 +236,19 @@
       transition: all 0.15s ease;
       cursor: pointer;
     }
-    .selection-card:hover {
-      border-color: rgba(255, 255, 255, 0.3);
-      background: #1E293B;
-    }
-    .selection-card.disabled-card {
-      opacity: 0.45;
-      cursor: not-allowed;
-      background: #0B0F19;
-    }
+    .selection-card:hover { border-color: rgba(255, 255, 255, 0.3); background: #1E293B; }
+    .selection-card.disabled-card { opacity: 0.45; cursor: not-allowed; background: #0B0F19; }
   </style>
 </head>
 <body class="py-4">
 
 <div class="container-fluid px-lg-5 px-3">
-  <!-- 頁頭控制列 (已移除重設資料庫按鈕) -->
+  <!-- 頁頭控制列 (含雲端同步狀態標籤) -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 gap-3">
     <div>
       <div class="d-flex align-items-center gap-2">
         <h3 class="fw-bold mb-0" style="letter-spacing: -0.03em;">💼 私募基金投資終端</h3>
-        <span class="status-pill pill-active"><span class="status-dot"></span>TERMINAL ACTIVE</span>
+        <span class="status-pill pill-active" id="cloud-sync-status"><span class="status-dot"></span>本地快取模式</span>
       </div>
       <p class="text-secondary small mb-0 mt-1" id="update-date">系統基期加載中...</p>
     </div>
@@ -361,7 +325,7 @@
     </div>
   </div>
 
-  <!-- 契約即時排程監控主表 (排版全面優化) -->
+  <!-- 契約即時排程監控主表 -->
   <div class="dark-card mb-4 p-0" style="overflow: hidden;">
     <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
@@ -458,7 +422,7 @@
   </div>
 </div>
 
-<!-- Modal: 一鍵快速續約 / 部分回金 / 加碼換約對話框 (預設維持原序號 1) -->
+<!-- Modal: 一鍵快速續約 / 部分回金 / 加碼換約對話框 -->
 <div class="modal fade" id="modalRenewContract" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -594,7 +558,6 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
-        <!-- 核心日期與總額卡 -->
         <div class="p-3 mb-3 rounded-3" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15);">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="text-secondary small">實領入帳登記日期：</span>
@@ -607,7 +570,6 @@
           </div>
         </div>
 
-        <!-- 勾選契約清單 -->
         <label class="form-label small text-secondary mb-1">本次發放明細清單：</label>
         <div id="confirm-payout-list-display" class="p-3 rounded-3" style="background: rgba(11, 15, 25, 0.6); max-height: 180px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1);"></div>
 
@@ -727,10 +689,32 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V8";
-  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V8";
-  const STORAGE_KEY_TOPUPS = "FUND_TOPUP_LOGS_V8";
+  // ==========================================
+  // 核心資料庫金鑰 (本地快取)
+  // ==========================================
+  const STORAGE_KEY_CONTRACTS = "FUND_CONTRACTS_DATA_V9";
+  const STORAGE_KEY_PAYOUTS = "FUND_PAYOUTS_DATA_V9";
+  const STORAGE_KEY_TOPUPS = "FUND_TOPUP_LOGS_V9";
 
+  // ==========================================
+  // 【選填】Google Firebase 免費雲端資料庫設定
+  // 若填入您的 Firebase 設定，網頁將自動跨電腦/手機無縫即時同步！
+  // 若未填寫，系統將自動維持以本地快取模式運作。
+  // ==========================================
+  const FIREBASE_CONFIG = {
+    apiKey: "",
+    authDomain: "",
+    databaseURL: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+  };
+
+  let isFirebaseEnabled = false;
+  let dbRef = null;
+
+  // 預設 7 筆合約
   const DEFAULT_CONTRACTS = [
     { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
     { id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
@@ -741,6 +725,7 @@
     { id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
   ];
 
+  // 預設領息明細
   const DEFAULT_PAYOUTS = [
     { contractId: "1", date: "2026-06-18", amount: 14400 },
     { contractId: "2", date: "2026-06-18", amount: 3600 },
@@ -786,8 +771,6 @@
   let modalPayoutHistoryInstance = null;
   let modalRenewContractInstance = null;
   let modalConfirmPayoutInstance = null;
-
-  // 暫存待寫入之領息清單 (供防呆確認視窗使用)
   let pendingPayoutRecords = [];
 
   // 1. 保證下一個星期三的數學算法
@@ -809,7 +792,7 @@
     return d.toISOString().split('T')[0];
   }
 
-  // 3. 資料初始化
+  // 3. 資料初始化 (支援雲端與本地自動切換)
   function initData() {
     modalBatchPayoutInstance = new bootstrap.Modal(document.getElementById('modalBatchPayout'));
     modalMergeContractInstance = new bootstrap.Modal(document.getElementById('modalMergeContract'));
@@ -817,6 +800,38 @@
     modalRenewContractInstance = new bootstrap.Modal(document.getElementById('modalRenewContract'));
     modalConfirmPayoutInstance = new bootstrap.Modal(document.getElementById('modalConfirmPayout'));
 
+    // 檢查是否啟用 Firebase 雲端資料庫
+    if (FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL) {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        dbRef = firebase.database().ref("fund_dashboard_data");
+        isFirebaseEnabled = true;
+
+        const statusPill = document.getElementById('cloud-sync-status');
+        statusPill.innerHTML = `<span class="status-dot"></span>☁️ 雲端同步連線中`;
+        statusPill.className = "status-pill pill-active";
+
+        // 監聽雲端即時變化 (公司/家裡電腦雙向同步)
+        dbRef.on("value", (snapshot) => {
+          const cloudData = snapshot.val();
+          if (cloudData) {
+            contracts = cloudData.contracts || [];
+            payouts = cloudData.payouts || [];
+            topupLogs = cloudData.topupLogs || [];
+            saveLocalOnly();
+            renderApp();
+          } else {
+            // 雲端為空，推送初始資料
+            pushToCloud();
+          }
+        });
+        return;
+      } catch (err) {
+        console.warn("Firebase 啟動失敗，切換為本地模式：", err);
+      }
+    }
+
+    // 本地快取載入模式
     const localC = localStorage.getItem(STORAGE_KEY_CONTRACTS);
     const localP = localStorage.getItem(STORAGE_KEY_PAYOUTS);
     const localT = localStorage.getItem(STORAGE_KEY_TOPUPS);
@@ -829,10 +844,21 @@
     renderApp();
   }
 
-  function saveData() {
+  function saveLocalOnly() {
     localStorage.setItem(STORAGE_KEY_CONTRACTS, JSON.stringify(contracts));
     localStorage.setItem(STORAGE_KEY_PAYOUTS, JSON.stringify(payouts));
     localStorage.setItem(STORAGE_KEY_TOPUPS, JSON.stringify(topupLogs));
+  }
+
+  function pushToCloud() {
+    if (isFirebaseEnabled && dbRef) {
+      dbRef.set({ contracts, payouts, topupLogs });
+    }
+  }
+
+  function saveData() {
+    saveLocalOnly();
+    pushToCloud();
   }
 
   // 4. 核心畫面渲染
@@ -868,12 +894,10 @@
       const isNegotiationPeriod = daysLeft <= 30 && daysLeft > 0 && c.status === "合約有效";
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
 
-      // 歷史累計領息
       const cumInterest = payouts
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
-      // 當月是否未領
       const hasCurrentMonthPayout = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && currentYM > startYM;
@@ -1024,7 +1048,7 @@
     });
   }
 
-  // 7. 批量領息模組 (當月全領、跨月首期鎖定、重複防呆)
+  // 7. 批量領息清單渲染
   function openBatchPayoutModal() {
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('batch-payout-date').value = todayStr;
@@ -1056,13 +1080,10 @@
 
     targetContracts.forEach(c => {
       const startYM = c.startDate.substring(0, 7);
-      // 跨月首期鎖定判定：若生效月份等於或大於入帳月，首期尚未滿月
       const isMatured = payoutYM > startYM;
-      // 檢查當月是否已經有過領息紀錄 (重複防呆)
       const isAlreadyPaidThisMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
       
       const isEligible = isMatured && (c.status === "合約有效" || showMerged);
-      // 預設打勾：符合資格 且 當月尚未領過
       const defaultChecked = isEligible && !isAlreadyPaidThisMonth;
 
       if (defaultChecked) selectableCount++;
@@ -1144,11 +1165,9 @@
       return;
     }
 
-    // 填充確認視窗資訊
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('confirm-payout-date-display').innerText = payoutDate;
 
-    // 日期情境提示標籤
     const tagContainer = document.getElementById('confirm-date-tag-container');
     if (payoutDate === todayStr) {
       tagContainer.innerHTML = `<span class="status-pill pill-warning"><span class="status-dot"></span>⚠️ 目前選擇為「今日日期」，若非今日領取請返回修改！</span>`;
@@ -1248,8 +1267,6 @@
     }
 
     const newId = String(document.getElementById('r-new-id').value).trim();
-
-    // 檢查是否有與「其他有效合約」衝突的序號
     const isConflict = contracts.some((c, i) => i !== idx && c.status === "合約有效" && String(c.id) === newId);
     if (isConflict) {
       alert(`合約序號 #${newId} 已存在於另一張進行中的合約，請使用不同序號！`);
@@ -1261,7 +1278,7 @@
     const newStart = document.getElementById('r-new-start').value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    // 核心處理：若序號維持不變 (如 1 續跑為 1)，直接在原地平滑更新，歷史領息無縫承接！
+    // 序號維持不變 (如 1 續跑為 1)，原地平滑更新，歷史領息無縫承接
     if (newId === oldId) {
       contracts[idx].term = newTerm;
       contracts[idx].amount = newTotal;
@@ -1269,7 +1286,6 @@
       contracts[idx].startDate = newStart;
       contracts[idx].status = "合約有效";
     } else {
-      // 若更換為新序號 (如由 1 改為 1.1 或其他)，舊合約封存歸檔，建立新合約列
       let oldStatus = "已期滿續約";
       if (adjust < 0) oldStatus = "部分回金換約";
       if (adjust > 0) oldStatus = "加碼換約";
@@ -1285,7 +1301,6 @@
       });
     }
 
-    // 記錄至加碼與資本異動歷史紀錄
     topupLogs.push({
       id: `TOP-${Date.now()}`,
       date: newStart,
@@ -1475,7 +1490,7 @@
     }
   }
 
-  // 12. 新增合約與刪除合約
+  // 12. 新增與刪除合約
   document.getElementById('form-contract').addEventListener('submit', function(e) {
     e.preventDefault();
     const newId = document.getElementById('c-id').value.trim();
