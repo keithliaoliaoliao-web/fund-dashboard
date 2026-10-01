@@ -100,18 +100,23 @@
       color: #FFF;
       box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
     }
+    .btn-blue-glow:hover { background: #0284C7; color: #FFF; }
+
     .btn-emerald-glow {
       background: linear-gradient(135deg, #059669, #047857);
       border: none;
       color: #FFF;
       box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
     }
+    .btn-emerald-glow:hover { background: #059669; color: #FFF; }
+
     .btn-purple-glow {
       background: linear-gradient(135deg, #6366F1, #4F46E5);
       border: none;
       color: #FFF;
       box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
     }
+    .btn-purple-glow:hover { background: #6366F1; color: #FFF; }
 
     .table-dark-fintech {
       --bs-table-bg: transparent;
@@ -429,7 +434,7 @@
       <div class="modal-header">
         <div>
           <h5 class="modal-title fw-bold">🔄 合約續約與本金異動 (支援原序號續跑 / 部分回金)</h5>
-          <p class="text-secondary small mb-0 mt-1">若序號維持不變，歷史累計領息自動接續向下累加</p>
+          <p class="text-secondary small mb-0 mt-1">舊約歷史領息完整封存，新約同序號接續向下累加</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -520,7 +525,7 @@
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="show-merged-payout" onchange="handlePayoutDateChange()">
               <label class="form-check-label small" for="show-merged-payout" style="color: #E2E8F0 !important; font-weight: 500;">
-                顯示已合併/已換約合約 (補登舊利息)
+                顯示已期滿/已換約合約 (補登舊利息)
               </label>
             </div>
             <div class="form-check">
@@ -764,21 +769,44 @@
   let modalConfirmPayoutInstance = null;
   let pendingPayoutRecords = [];
 
+  // ==========================================
+  // 核心時間輔助函式 (徹底消滅 UTC 時區倒退 Bug)
+  // ==========================================
+  function formatLocalDate(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseLocalDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  // 保證次週三算法
   function calculateNextWednesday(dateStr) {
-    const d = new Date(dateStr);
+    const d = parseLocalDate(dateStr);
     if (isNaN(d.getTime())) return "-";
     const day = d.getDay();
     const w = (day === 0) ? 7 : day;
     const delta = ((9 - w) % 7) + 1;
     d.setDate(d.getDate() + delta);
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(d);
   }
 
+  // 合約到期日推算 (含月末溢位校正)
   function calculateEndDate(startDateStr, term) {
-    const d = new Date(startDateStr);
+    const d = parseLocalDate(startDateStr);
     const months = (term === "半年") ? 6 : 12;
+    const originalDay = d.getDate();
+    
     d.setMonth(d.getMonth() + months);
-    return d.toISOString().split('T')[0];
+    // 若月份溢位 (例如 8/31 變 3/3)，校正回上個月最後一天 (2/28)
+    if (d.getDate() < originalDay) {
+      d.setDate(0);
+    }
+    return formatLocalDate(d);
   }
 
   // 純雲端初始化引擎
@@ -803,7 +831,7 @@
       dbRef.on("value", (snapshot) => {
         const cloudData = snapshot.val();
         
-        // 核心修復：若雲端為空或合約數為 0，自動上傳種子資料並即時渲染
+        // 核心防呆：若雲端為空或合約數為 0，自動上傳種子資料並即時渲染
         if (!cloudData || !cloudData.contracts || cloudData.contracts.length === 0) {
           contracts = JSON.parse(JSON.stringify(DEFAULT_CONTRACTS));
           payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
@@ -848,7 +876,7 @@
   function renderApp() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = formatLocalDate(today);
     const currentYM = todayStr.substring(0, 7);
 
     document.getElementById('update-date').innerText = `系統基期：${todayStr}`;
@@ -869,7 +897,7 @@
     contracts.forEach((c, index) => {
       const endDate = calculateEndDate(c.startDate, c.term);
       const nextWed = calculateNextWednesday(endDate);
-      const diffTime = new Date(endDate).getTime() - today.getTime();
+      const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const monthlyGain = Math.round(c.amount * 10000 * (c.rate / 100));
 
@@ -885,7 +913,7 @@
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && currentYM > startYM;
 
       let statusBadge = `<span class="status-pill pill-active"><span class="status-dot"></span>合約有效</span>`;
-      if (c.status === "已合併" || c.status.includes("換約") || c.status.includes("續約")) {
+      if (c.status !== "合約有效") {
         statusBadge = `<span class="status-pill pill-merged"><span class="status-dot"></span>${c.status}</span>`;
       } else if (isExpired) {
         statusBadge = `<span class="status-pill pill-alert"><span class="status-dot"></span>已期滿待換約</span>`;
@@ -1029,7 +1057,7 @@
   }
 
   function openBatchPayoutModal() {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatLocalDate(new Date());
     document.getElementById('batch-payout-date').value = todayStr;
     document.getElementById('show-merged-payout').checked = false;
     renderBatchPayoutItems(todayStr);
@@ -1059,7 +1087,9 @@
 
     targetContracts.forEach(c => {
       const startYM = c.startDate.substring(0, 7);
+      // 跨月首期鎖定判定：若生效月份大於等於入帳月，首期尚未滿月
       const isMatured = payoutYM > startYM;
+      // 檢查當月是否已經有過領息紀錄 (重複防呆)
       const isAlreadyPaidThisMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
       
       const isEligible = isMatured && (c.status === "合約有效" || showMerged);
@@ -1143,7 +1173,7 @@
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatLocalDate(new Date());
     document.getElementById('confirm-payout-date-display').innerText = payoutDate;
 
     const tagContainer = document.getElementById('confirm-date-tag-container');
@@ -1228,6 +1258,7 @@
     }
   }
 
+  // 核心升級：續約換約無縫承接 (舊約封存保護歷史，新約上線)
   function submitRenewContract(e) {
     e.preventDefault();
     const idx = Number(document.getElementById('r-old-index').value);
@@ -1253,28 +1284,23 @@
     const newStart = document.getElementById('r-new-start').value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    if (newId === oldId) {
-      contracts[idx].term = newTerm;
-      contracts[idx].amount = newTotal;
-      contracts[idx].rate = newRate;
-      contracts[idx].startDate = newStart;
-      contracts[idx].status = "合約有效";
-    } else {
-      let oldStatus = "已期滿續約";
-      if (adjust < 0) oldStatus = "部分回金換約";
-      if (adjust > 0) oldStatus = "加碼換約";
-      contracts[idx].status = oldStatus;
+    // 1. 將舊約標記封存 (無論是否同名，舊約歷史起息日完整保留，不阻擋最後一期領息)
+    let oldStatus = "已期滿續約";
+    if (adjust < 0) oldStatus = "部分回金換約";
+    if (adjust > 0) oldStatus = "加碼換約";
+    contracts[idx].status = oldStatus;
 
-      contracts.push({
-        id: newId,
-        term: newTerm,
-        amount: newTotal,
-        rate: newRate,
-        startDate: newStart,
-        status: "合約有效"
-      });
-    }
+    // 2. 建立新約 (接續生效，同序號讓累計盈餘繼續累加)
+    contracts.push({
+      id: newId,
+      term: newTerm,
+      amount: newTotal,
+      rate: newRate,
+      startDate: newStart,
+      status: "合約有效"
+    });
 
+    // 3. 寫入加碼與資本異動日誌
     topupLogs.push({
       id: `TOP-${Date.now()}`,
       date: newStart,
@@ -1282,13 +1308,13 @@
       topupAmount: adjust,
       oldAmount: oldAmount,
       newAmount: newTotal,
-      note: userNote || `契約 #${oldId} ${newId === oldId ? '續跑' : '換約至 #' + newId} (${adjust < 0 ? '部分回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續約')})`
+      note: userNote || `契約 #${oldId} 續跑換約 (${adjust < 0 ? '部分回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續約')})`
     });
 
     saveData();
     modalRenewContractInstance.hide();
     renderApp();
-    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！`);
+    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！舊約已封存歸檔，歷史領息完全承接。`);
   }
 
   function openMergeModal() {
@@ -1318,7 +1344,7 @@
     });
 
     document.getElementById('m-topup').value = 0;
-    document.getElementById('m-start').value = new Date().toISOString().split('T')[0];
+    document.getElementById('m-start').value = formatLocalDate(new Date());
     document.getElementById('m-note').value = "";
     updateMergeSummary();
     modalMergeContractInstance.show();
@@ -1427,7 +1453,7 @@
       filtered = filtered.filter(p => String(p.contractId) === filterId);
     }
 
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
 
     const totalSum = filtered.reduce((sum, p) => sum + Number(p.amount), 0);
     document.getElementById('history-summary-stats').innerText = `共 ${filtered.length} 筆入帳，合計 ${totalSum.toLocaleString()} 元`;
@@ -1494,10 +1520,11 @@
   }
 
   function exportData() {
+    const todayStr = formatLocalDate(new Date());
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts, topupLogs }, null, 2));
     const dl = document.createElement('a');
     dl.setAttribute("href", dataStr);
-    dl.setAttribute("download", `私募基金完整備份_${new Date().toISOString().split('T')[0]}.json`);
+    dl.setAttribute("download", `私募基金完整備份_${todayStr}.json`);
     dl.click();
   }
 
@@ -1518,6 +1545,8 @@
         }
       } catch (err) {
         alert("還原失敗：JSON 格式無效。");
+      } finally {
+        event.target.value = ""; // 重設 input，確保重複上傳同檔案可正常觸發
       }
     };
     reader.readAsText(file);
