@@ -116,6 +116,7 @@
       color: #FFF;
       box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
     }
+    .btn-purple-glow:hover { background: #6366F1; color: #FFF; }
 
     .table-dark-fintech {
       --bs-table-bg: transparent;
@@ -867,7 +868,7 @@
     }
   }
 
-  // 核心畫面渲染
+  // 核心畫面渲染 (修復：主表待領息判定納入連續換約)
   function renderApp() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -903,9 +904,12 @@
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
+      // 【修復 1】：主表檢查當月是否未領息時，納入換約連續性判定
       const hasCurrentMonthPayout = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
-      const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && currentYM > startYM;
+      const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < currentYM);
+      const isMatured = (currentYM > startYM) || hasPriorPayouts;
+      const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && isMatured;
 
       let statusBadge = `<span class="status-pill pill-active"><span class="status-dot"></span>合約有效</span>`;
       if (c.status !== "合約有效") {
@@ -917,7 +921,7 @@
       }
 
       if (isOverdue) {
-        statusBadge += ` <span class="status-pill pill-warning ms-1"><span class="status-dot"></span>待領息</span>`;
+        statusBadge += ` <span class="status-pill pill-warning ms-1"><span class="status-dot"></span>⚠️ 待領息</span>`;
       }
 
       const tr = document.createElement('tr');
@@ -1065,7 +1069,7 @@
   }
 
   // =========================================================================
-  // 核心升級：智慧雙軌領息判定 (舊約最後一期自動浮現結算 + 連續換約解鎖 + 補登解鎖)
+  // 核心邏輯：雙軌領息判定 (修復：最後一期精準鎖定，領過即永久隱藏)
   // =========================================================================
   function renderBatchPayoutItems(payoutDateStr) {
     const listContainer = document.getElementById('batch-payout-list');
@@ -1074,19 +1078,19 @@
     const showMerged = document.getElementById('show-merged-payout').checked;
     const payoutYM = payoutDateStr.substring(0, 7);
 
-    // 彙整候選合約清單
     const candidateItems = [];
 
     contracts.forEach(c => {
       if (c.status === "合約有效") {
         candidateItems.push({ contract: c, isOldPendingFinal: false });
       } else {
-        // 檢查已期滿/已換約的舊合約，在其到期月份是否漏領了最後一期？
         const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
-        const hasPaidInCurrentPayoutMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
+        // 【修復 3】：檢查該舊約在「到期月份」是否已經領過利息
+        const hasPaidFinalMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(endYM));
         
-        // 若到期月小於等於入帳月，且當月尚未領息，判定為「待領最後一期」！
-        const isOldPendingFinal = (payoutYM >= endYM) && !hasPaidInCurrentPayoutMonth;
+        // 只有「到期月份利息尚未領取」且「入帳月份已達或超過到期月」時，才浮現為最後一期結算！
+        // 一旦入帳，hasPaidFinalMonth 即為 true，下個月永不再跳出！
+        const isOldPendingFinal = (payoutYM >= endYM) && !hasPaidFinalMonth;
 
         if (isOldPendingFinal || showMerged) {
           candidateItems.push({ contract: c, isOldPendingFinal: isOldPendingFinal });
@@ -1107,9 +1111,7 @@
       const isOldPendingFinal = item.isOldPendingFinal;
       const startYM = c.startDate.substring(0, 7);
 
-      // 檢查該合約過去是否已有領息歷史 (連續性判定)
       const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < payoutYM);
-      // 檢查本月份是否已經登記過
       const isAlreadyPaidThisMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
 
       let canSelect = false;
@@ -1117,25 +1119,23 @@
       let statusBadge = "";
 
       if (isOldPendingFinal) {
-        // 【軌道 1：舊約最後一期自動浮現】
+        // 舊約期滿結算 (最後一期)
         canSelect = true;
         defaultChecked = true;
         statusBadge = `<span class="status-pill pill-alert ms-2">🏁 舊約期滿結算 (最後一期)</span>`;
       } else if (c.status !== "合約有效") {
-        // 【軌道 2：手動勾選補登的歷史合約】
-        canSelect = true; // 徹底解鎖！不再反灰！
+        // 手動勾選補登的歷史合約
+        canSelect = true;
         defaultChecked = !isAlreadyPaidThisMonth;
         statusBadge = `<span class="status-pill pill-merged ms-2">${c.status}(補登)</span>`;
         if (isAlreadyPaidThisMonth) {
           statusBadge += ` <span class="status-pill pill-active ms-1">✅ 已領過</span>`;
         }
       } else {
-        // 【軌道 3：生效中的合約】
-        // 若入帳月大於生效月，或該合約具備歷史配息 (換約延續)，均視為成熟合約！
+        // 生效中合約
         const isMatured = (payoutYM > startYM) || hasPriorPayouts;
 
         if (!isMatured) {
-          // 真正全新的初次起息合約，嚴格執行跨月首期鎖定
           canSelect = false;
           defaultChecked = false;
           statusBadge = `<span class="status-pill pill-neutral ms-2">🔒 跨月首期 (次月起領)</span>`;
@@ -1311,7 +1311,6 @@
     }
   }
 
-  // 續約升級：舊約歷史完整封存，新約無縫上線
   function submitRenewContract(e) {
     e.preventDefault();
     const idx = Number(document.getElementById('r-old-index').value);
@@ -1337,13 +1336,13 @@
     const newStart = document.getElementById('r-new-start').value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    // 1. 將舊約標記封存 (歷史起息日與條款妥善保存，供期滿末期結算使用)
+    // 1. 將舊約標記封存 (歷史起息日與到期日妥善保存，供期滿末期結算使用)
     let oldStatus = "已期滿續約";
     if (adjust < 0) oldStatus = "部分回金換約";
     if (adjust > 0) oldStatus = "加碼換約";
     contracts[idx].status = oldStatus;
 
-    // 2. 建立新約 (接續生效，同序號讓累計盈餘繼續累加)
+    // 2. 建立新約
     contracts.push({
       id: newId,
       term: newTerm,
