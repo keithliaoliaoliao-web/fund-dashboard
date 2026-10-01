@@ -269,7 +269,7 @@
     </div>
   </div>
 
-  <!-- 四大核心 KPI 卡片 (第二張升級為方案 B：本月動態變色進度卡) -->
+  <!-- 四大核心 KPI 卡片 -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
       <div class="dark-card">
@@ -310,7 +310,7 @@
       <div class="dark-card h-100">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h6 class="fw-bold mb-0">每月配息流水帳趨勢 (元)</h6>
-          <span class="text-secondary small">實體現金入帳</span>
+          <span class="text-secondary small">依月份聚合統計</span>
         </div>
         <div style="position: relative; height: 260px;">
           <canvas id="chart-payouts"></canvas>
@@ -332,10 +332,16 @@
 
   <!-- 契約即時排程監控主表 -->
   <div class="dark-card mb-4 p-0" style="overflow: hidden;">
-    <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="border-color: rgba(255,255,255,0.08) !important;">
+    <div class="p-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
         <h5 class="fw-bold mb-0">合約監控主表</h5>
-        <span class="text-secondary small">高對比排版、一鍵續約/回金換約、次週三交割日與跨月提醒</span>
+        <span class="text-secondary small">高對比排版、一鍵續約/回金換約、週三交割日與到期提醒</span>
+      </div>
+      <div class="form-check form-check-inline m-0">
+        <input class="form-check-input" type="checkbox" id="filter-show-decommissioned" checked onchange="renderApp()">
+        <label class="form-check-label small text-secondary" for="filter-show-decommissioned">
+          顯示歷史/已除役合約
+        </label>
       </div>
     </div>
     <div class="table-responsive">
@@ -350,7 +356,7 @@
             <th style="color: var(--accent-emerald);">累計領息 (元)</th>
             <th>起息日</th>
             <th>到期日</th>
-            <th>交割日 (保證週三)</th>
+            <th>交割日 (週三生效)</th>
             <th>期滿倒數</th>
             <th>狀態與提醒</th>
             <th class="text-end">管理操作</th>
@@ -440,7 +446,7 @@
       </div>
       <div class="modal-body p-4">
         <form id="form-renew" onsubmit="submitRenewContract(event)">
-          <input type="hidden" id="r-old-index">
+          <input type="hidden" id="r-old-uid">
           <input type="hidden" id="r-old-id">
           <input type="hidden" id="r-old-amount">
           <input type="hidden" id="r-old-enddate">
@@ -488,7 +494,7 @@
               <input type="number" id="r-new-rate" class="form-control" required min="0.1" step="0.1" placeholder="如：1.2">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label small">交割生效日 (自動鎖定次週三)</label>
+              <label class="form-label small">交割生效日 (自動校準週三)</label>
               <input type="date" id="r-new-start" class="form-control" required onclick="this.showPicker()">
             </div>
             <div class="col-12">
@@ -504,7 +510,7 @@
   </div>
 </div>
 
-<!-- Modal: 批量領息對話框 (含舊約最後一期自動浮現智慧機制) -->
+<!-- Modal: 批量領息對話框 -->
 <div class="modal fade" id="modalBatchPayout" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -708,47 +714,47 @@
     measurementId: "G-TD240CP07T"
   };
 
-  // 預設 7 筆合約種子資料
+  // 預設 7 筆合約種子資料 (內建 uid)
   const DEFAULT_CONTRACTS = [
-    { id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
-    { id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
-    { id: "3", term: "一年", amount: 150, rate: 1.8, startDate: "2026-05-27", status: "合約有效" },
-    { id: "4", term: "半年", amount: 100, rate: 1.4, startDate: "2026-06-17", status: "合約有效" },
-    { id: "5", term: "一年", amount: 70, rate: 1.8, startDate: "2026-07-01", status: "合約有效" },
-    { id: "6", term: "半年", amount: 40, rate: 1.2, startDate: "2026-08-19", status: "合約有效" },
-    { id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
+    { uid: "C_1_SEED", id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
+    { uid: "C_2_SEED", id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
+    { uid: "C_3_SEED", id: "3", term: "一年", amount: 150, rate: 1.8, startDate: "2026-05-27", status: "合約有效" },
+    { uid: "C_4_SEED", id: "4", term: "半年", amount: 100, rate: 1.4, startDate: "2026-06-17", status: "合約有效" },
+    { uid: "C_5_SEED", id: "5", term: "一年", amount: 70, rate: 1.8, startDate: "2026-07-01", status: "合約有效" },
+    { uid: "C_6_SEED", id: "6", term: "半年", amount: 40, rate: 1.2, startDate: "2026-08-19", status: "合約有效" },
+    { uid: "C_7_SEED", id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
   ];
 
   // 預設領息流水帳種子資料 (6月~9月)
   const DEFAULT_PAYOUTS = [
-    { contractId: "1", date: "2026-06-18", amount: 14400 },
-    { contractId: "2", date: "2026-06-18", amount: 3600 },
-    { contractId: "3", date: "2026-06-18", amount: 27000 },
-    { contractId: "4", date: "2026-06-18", amount: 14000 },
-    { contractId: "5", date: "2026-06-18", amount: 8500 },
-    { contractId: "6", date: "2026-06-18", amount: 4800 },
-    { contractId: "7", date: "2026-06-18", amount: 16000 },
-    { contractId: "1", date: "2026-07-18", amount: 14400 },
-    { contractId: "2", date: "2026-07-18", amount: 3600 },
-    { contractId: "3", date: "2026-07-18", amount: 27000 },
-    { contractId: "4", date: "2026-07-18", amount: 14000 },
-    { contractId: "5", date: "2026-07-18", amount: 0 },
-    { contractId: "6", date: "2026-07-18", amount: 4800 },
-    { contractId: "7", date: "2026-07-18", amount: 16000 },
-    { contractId: "1", date: "2026-08-22", amount: 14400 },
-    { contractId: "2", date: "2026-08-22", amount: 3600 },
-    { contractId: "3", date: "2026-08-22", amount: 27000 },
-    { contractId: "4", date: "2026-08-22", amount: 14000 },
-    { contractId: "5", date: "2026-08-22", amount: 12600 },
-    { contractId: "6", date: "2026-08-22", amount: 4800 },
-    { contractId: "7", date: "2026-08-22", amount: 16000 },
-    { contractId: "1", date: "2026-09-19", amount: 14400 },
-    { contractId: "2", date: "2026-09-19", amount: 3600 },
-    { contractId: "3", date: "2026-09-19", amount: 27000 },
-    { contractId: "4", date: "2026-09-19", amount: 14000 },
-    { contractId: "5", date: "2026-09-19", amount: 12600 },
-    { contractId: "6", date: "2026-09-19", amount: 4800 },
-    { contractId: "7", date: "2026-09-19", amount: 16000 }
+    { contractId: "1", contractUid: "C_1_SEED", date: "2026-06-18", amount: 14400 },
+    { contractId: "2", contractUid: "C_2_SEED", date: "2026-06-18", amount: 3600 },
+    { contractId: "3", contractUid: "C_3_SEED", date: "2026-06-18", amount: 27000 },
+    { contractId: "4", contractUid: "C_4_SEED", date: "2026-06-18", amount: 14000 },
+    { contractId: "5", contractUid: "C_5_SEED", date: "2026-06-18", amount: 8500 },
+    { contractId: "6", contractUid: "C_6_SEED", date: "2026-06-18", amount: 4800 },
+    { contractId: "7", contractUid: "C_7_SEED", date: "2026-06-18", amount: 16000 },
+    { contractId: "1", contractUid: "C_1_SEED", date: "2026-07-18", amount: 14400 },
+    { contractId: "2", contractUid: "C_2_SEED", date: "2026-07-18", amount: 3600 },
+    { contractId: "3", contractUid: "C_3_SEED", date: "2026-07-18", amount: 27000 },
+    { contractId: "4", contractUid: "C_4_SEED", date: "2026-07-18", amount: 14000 },
+    { contractId: "5", contractUid: "C_5_SEED", date: "2026-07-18", amount: 0 },
+    { contractId: "6", contractUid: "C_6_SEED", date: "2026-07-18", amount: 4800 },
+    { contractId: "7", contractUid: "C_7_SEED", date: "2026-07-18", amount: 16000 },
+    { contractId: "1", contractUid: "C_1_SEED", date: "2026-08-22", amount: 14400 },
+    { contractId: "2", contractUid: "C_2_SEED", date: "2026-08-22", amount: 3600 },
+    { contractId: "3", contractUid: "C_3_SEED", date: "2026-08-22", amount: 27000 },
+    { contractId: "4", contractUid: "C_4_SEED", date: "2026-08-22", amount: 14000 },
+    { contractId: "5", contractUid: "C_5_SEED", date: "2026-08-22", amount: 12600 },
+    { contractId: "6", contractUid: "C_6_SEED", date: "2026-08-22", amount: 4800 },
+    { contractId: "7", contractUid: "C_7_SEED", date: "2026-08-22", amount: 16000 },
+    { contractId: "1", contractUid: "C_1_SEED", date: "2026-09-19", amount: 14400 },
+    { contractId: "2", contractUid: "C_2_SEED", date: "2026-09-19", amount: 3600 },
+    { contractId: "3", contractUid: "C_3_SEED", date: "2026-09-19", amount: 27000 },
+    { contractId: "4", contractUid: "C_4_SEED", date: "2026-09-19", amount: 14000 },
+    { contractId: "5", contractUid: "C_5_SEED", date: "2026-09-19", amount: 12600 },
+    { contractId: "6", contractUid: "C_6_SEED", date: "2026-09-19", amount: 4800 },
+    { contractId: "7", contractUid: "C_7_SEED", date: "2026-09-19", amount: 16000 }
   ];
 
   // 預設加碼紀錄種子資料
@@ -782,13 +788,12 @@
     return new Date(y, m - 1, d);
   }
 
-  // 保證次週三算法
+  // 校準後的次週三計算邏輯：若剛好是週三則當天生效，否則推至下一個週三
   function calculateNextWednesday(dateStr) {
     const d = parseLocalDate(dateStr);
     if (isNaN(d.getTime())) return "-";
-    const day = d.getDay();
-    const w = (day === 0) ? 7 : day;
-    const delta = ((9 - w) % 7) + 1;
+    const day = d.getDay(); // 0(日), 1(一), 2(二), 3(三), 4(四), 5(五), 6(六)
+    const delta = (3 - day + 7) % 7;
     d.setDate(d.getDate() + delta);
     return formatLocalDate(d);
   }
@@ -804,6 +809,28 @@
       d.setDate(0);
     }
     return formatLocalDate(d);
+  }
+
+  // 資料結構完整性校驗：為現存合約補齊 uid
+  function ensureDataIntegrity() {
+    let modified = false;
+    contracts.forEach(c => {
+      if (!c.uid) {
+        c.uid = `C_${c.id}_${(c.startDate || '').replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
+        modified = true;
+      }
+    });
+    if (modified) {
+      saveData();
+    }
+  }
+
+  // 精確合約領息比對輔助函式 (相容 uid 與舊資料)
+  function isPayoutOfContract(p, c) {
+    if (p.contractUid && c.uid) {
+      return p.contractUid === c.uid;
+    }
+    return String(p.contractId) === String(c.id);
   }
 
   // 純雲端初始化引擎
@@ -828,7 +855,6 @@
       dbRef.on("value", (snapshot) => {
         const cloudData = snapshot.val();
         
-        // 核心防呆：若雲端為空，自動上傳種子資料並即時渲染
         if (!cloudData || !cloudData.contracts || cloudData.contracts.length === 0) {
           contracts = JSON.parse(JSON.stringify(DEFAULT_CONTRACTS));
           payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
@@ -844,6 +870,7 @@
           contracts = cloudData.contracts || [];
           payouts = cloudData.payouts || [];
           topupLogs = cloudData.topupLogs || [];
+          ensureDataIntegrity();
           renderApp();
         }
       }, (error) => {
@@ -857,7 +884,6 @@
     }
   }
 
-  // 儲存邏輯：直接同步雲端
   function saveData() {
     if (dbRef) {
       dbRef.set({
@@ -869,7 +895,7 @@
   }
 
   // =========================================================================
-  // 核心畫面渲染 (升級方案 B：本月可領動態變色卡片 + 保留常態產能)
+  // 核心畫面渲染
   // =========================================================================
   function renderApp() {
     const today = new Date();
@@ -883,10 +909,10 @@
     const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
     const totalInterest = payouts.reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
 
-    // 1. 計算理論常態月產能基準 (所有有效合約加總)
+    // 1. 計算理論常態月產能基準
     const monthlyBaseCashflow = activeContracts.reduce((sum, c) => sum + (c.amount * 10000 * (c.rate / 100)), 0);
 
-    // 2. 精算「本月實質可領收益」 (包含有效成熟合約 + 舊約期滿結算最後一期)
+    // 2. 精算本月實質可領收益 (涵蓋有效合約 + 舊約期滿結算最後一期)
     let thisMonthEligibleTotal = 0;
     contracts.forEach(c => {
       if (c.status === "合約有效") {
@@ -898,24 +924,23 @@
         }
       } else {
         const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
-        const hasPaidFinalMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(endYM));
+        const hasPaidFinalMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
         if (currentYM >= endYM && !hasPaidFinalMonth) {
           thisMonthEligibleTotal += Math.round(c.amount * 10000 * (c.rate / 100));
         }
       }
     });
 
-    // 3. 計算「本月已經入帳的現金總額」
+    // 3. 本月已入帳現金總額
     const thisMonthClaimedTotal = payouts
       .filter(p => p.date.startsWith(currentYM))
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
-    // 4. 動態切換第二張 KPI 卡片顏色、數值與進度標籤
+    // 4. 動態變色 KPI 卡片
     const kpiCashflowElem = document.getElementById('kpi-cashflow');
     const kpiCashflowSubElem = document.getElementById('kpi-cashflow-sub');
 
     if (thisMonthClaimedTotal === 0) {
-      // 狀態 1：待領取 (亮琥珀金)
       kpiCashflowElem.style.color = "var(--accent-amber)";
       kpiCashflowElem.innerText = `${thisMonthEligibleTotal.toLocaleString()} 元`;
       kpiCashflowSubElem.innerHTML = `
@@ -925,7 +950,6 @@
         </div>
       `;
     } else if (thisMonthClaimedTotal >= thisMonthEligibleTotal && thisMonthEligibleTotal > 0) {
-      // 狀態 2：已全數結清 (極光翠綠)
       kpiCashflowElem.style.color = "var(--accent-emerald)";
       kpiCashflowElem.innerText = `${thisMonthClaimedTotal.toLocaleString()} 元`;
       kpiCashflowSubElem.innerHTML = `
@@ -935,7 +959,6 @@
         </div>
       `;
     } else {
-      // 狀態 3：部分領取 (天青藍)
       const percent = thisMonthEligibleTotal > 0 ? Math.round((thisMonthClaimedTotal / thisMonthEligibleTotal) * 100) : 0;
       kpiCashflowElem.style.color = "var(--accent-blue)";
       kpiCashflowElem.innerText = `${thisMonthClaimedTotal.toLocaleString()} / ${thisMonthEligibleTotal.toLocaleString()} 元`;
@@ -947,17 +970,21 @@
       `;
     }
 
-    // 更新其他 KPI
     document.getElementById('kpi-principal').innerText = `${totalPrincipal.toLocaleString()} 萬`;
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 渲染主表格
+    // 5. 渲染主表格 (支援顯示/隱藏除役合約 + 本月最後一期提醒)
+    const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
 
     contracts.forEach((c, index) => {
+      const isDecommissioned = (c.status !== "合約有效");
+      if (isDecommissioned && !showDecommissioned) return;
+
       const endDate = calculateEndDate(c.startDate, c.term);
+      const endYM = endDate.substring(0, 7);
       const nextWed = calculateNextWednesday(endDate);
       const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -965,20 +992,22 @@
 
       const isNegotiationPeriod = daysLeft <= 30 && daysLeft > 0 && c.status === "合約有效";
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
+      const isFinalMonth = (c.status === "合約有效" && currentYM === endYM);
 
+      // 歷史累計領息：依序號 (contractId) 完整累計加總
       const cumInterest = payouts
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
-      // 主表待領息判定 (納入換約連續性)
-      const hasCurrentMonthPayout = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(currentYM));
+      // 待領息判定：依 uid 隔離檢查當月是否已領
+      const hasCurrentMonthPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
       const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < currentYM);
       const isMatured = (currentYM > startYM) || hasPriorPayouts;
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && isMatured;
 
       let statusBadge = `<span class="status-pill pill-active"><span class="status-dot"></span>合約有效</span>`;
-      if (c.status !== "合約有效") {
+      if (isDecommissioned) {
         statusBadge = `<span class="status-pill pill-merged"><span class="status-dot"></span>${c.status}</span>`;
       } else if (isExpired) {
         statusBadge = `<span class="status-pill pill-alert"><span class="status-dot"></span>已期滿待換約</span>`;
@@ -986,11 +1015,18 @@
         statusBadge = `<span class="status-pill pill-warning"><span class="status-dot"></span>🔔 續約洽談期</span>`;
       }
 
-      if (isOverdue) {
+      // 期滿最後一期提醒標籤
+      if (isFinalMonth) {
+        statusBadge += ` <span class="status-pill pill-alert ms-1"><span class="status-dot"></span>🏁 本月期滿最後一期</span>`;
+      } else if (isOverdue) {
         statusBadge += ` <span class="status-pill pill-warning ms-1"><span class="status-dot"></span>⚠️ 待領息</span>`;
       }
 
       const tr = document.createElement('tr');
+      if (isDecommissioned) {
+        tr.style.opacity = "0.6";
+      }
+
       tr.innerHTML = `
         <td><span class="num-font fw-bold" style="color: var(--accent-blue);">#${c.id}</span></td>
         <td><span class="badge bg-light text-dark border px-2 py-1">${c.term}</span></td>
@@ -1009,7 +1045,7 @@
         <td>${statusBadge}</td>
         <td class="text-end">
           ${c.status === '合約有效' ? `
-            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.4); font-size: 0.75rem; padding: 3px 8px;" onclick="openRenewModal(${index})">🔄 續約/異動</button>
+            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.4); font-size: 0.75rem; padding: 3px 8px;" onclick="openRenewModal('${c.uid || index}')">🔄 續約/異動</button>
           ` : ''}
           <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 3px 8px; font-size: 0.75rem;" onclick="deleteContract(${index})">🗑️</button>
         </td>
@@ -1058,10 +1094,12 @@
     }
   }
 
+  // 配息流水帳圖表：依「月份 (YYYY-MM)」聚合統計
   function renderCharts(activeContracts) {
     const monthlyMap = {};
     payouts.forEach(p => {
-      monthlyMap[p.date] = (monthlyMap[p.date] || 0) + Number(p.amount);
+      const ym = p.date.substring(0, 7);
+      monthlyMap[ym] = (monthlyMap[ym] || 0) + Number(p.amount);
     });
     const pLabels = Object.keys(monthlyMap).sort();
     const pValues = pLabels.map(k => monthlyMap[k]);
@@ -1084,7 +1122,14 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: '#151C2C', borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1 }
+          tooltip: { 
+            backgroundColor: '#151C2C', 
+            borderColor: 'rgba(255,255,255,0.15)', 
+            borderWidth: 1,
+            callbacks: {
+              label: (ctx) => `本月總計配息：${ctx.parsed.y.toLocaleString()} 元`
+            }
+          }
         },
         scales: {
           x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#CBD5E1' } },
@@ -1134,6 +1179,7 @@
     renderBatchPayoutItems(selectedDate);
   }
 
+  // 批量領息列表渲染：結合精確 uid 防呆與到期月份提示
   function renderBatchPayoutItems(payoutDateStr) {
     const listContainer = document.getElementById('batch-payout-list');
     listContainer.innerHTML = "";
@@ -1148,7 +1194,7 @@
         candidateItems.push({ contract: c, isOldPendingFinal: false });
       } else {
         const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
-        const hasPaidFinalMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(endYM));
+        const hasPaidFinalMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
         const isOldPendingFinal = (payoutYM >= endYM) && !hasPaidFinalMonth;
 
         if (isOldPendingFinal || showMerged) {
@@ -1169,9 +1215,10 @@
       const c = item.contract;
       const isOldPendingFinal = item.isOldPendingFinal;
       const startYM = c.startDate.substring(0, 7);
+      const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
 
       const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < payoutYM);
-      const isAlreadyPaidThisMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
+      const isAlreadyPaidThisMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(payoutYM));
 
       let canSelect = false;
       let defaultChecked = false;
@@ -1190,6 +1237,7 @@
         }
       } else {
         const isMatured = (payoutYM > startYM) || hasPriorPayouts;
+        const isFinalMonth = (payoutYM === endYM);
 
         if (!isMatured) {
           canSelect = false;
@@ -1198,8 +1246,13 @@
         } else {
           canSelect = true;
           defaultChecked = !isAlreadyPaidThisMonth;
+
           if (isAlreadyPaidThisMonth) {
-            statusBadge = `<span class="status-pill pill-active ms-2">✅ ${payoutYM.split('-')[1]}月已領</span>`;
+            statusBadge = isFinalMonth 
+              ? `<span class="status-pill pill-active ms-2">🏁 期滿最後一期 (已領)</span>`
+              : `<span class="status-pill pill-active ms-2">✅ ${payoutYM.split('-')[1]}月已領</span>`;
+          } else if (isFinalMonth) {
+            statusBadge = `<span class="status-pill pill-alert ms-2">🏁 本約期滿最後一期</span>`;
           } else if (startYM === payoutYM && hasPriorPayouts) {
             statusBadge = `<span class="status-pill pill-active ms-2">🔄 接續換約期</span>`;
           }
@@ -1217,6 +1270,7 @@
                  ${defaultChecked ? 'checked' : ''} 
                  ${!canSelect ? 'disabled' : ''} 
                  value="${c.id}" 
+                 data-uid="${c.uid}"
                  data-gain="${fixedGain}" 
                  onchange="updateBatchSummary()">
           <div>
@@ -1271,6 +1325,7 @@
       if (cb.checked) {
         pendingPayoutRecords.push({
           contractId: cb.value,
+          contractUid: cb.dataset.uid,
           date: payoutDate,
           amount: Number(cb.dataset.gain)
         });
@@ -1329,12 +1384,20 @@
     pendingPayoutRecords = [];
   }
 
-  function openRenewModal(idx) {
-    const c = contracts[idx];
+  function openRenewModal(target) {
+    let c = null;
+    if (typeof target === 'string') {
+      c = contracts.find(item => item.uid === target);
+    }
+    if (!c && typeof target === 'number') {
+      c = contracts[target];
+    }
+    if (!c) return;
+
     const endDate = calculateEndDate(c.startDate, c.term);
     const nextWed = calculateNextWednesday(endDate);
 
-    document.getElementById('r-old-index').value = idx;
+    document.getElementById('r-old-uid').value = c.uid;
     document.getElementById('r-old-id').value = c.id;
     document.getElementById('r-old-amount').value = c.amount;
     document.getElementById('r-old-enddate').value = endDate;
@@ -1369,7 +1432,14 @@
 
   function submitRenewContract(e) {
     e.preventDefault();
-    const idx = Number(document.getElementById('r-old-index').value);
+    const oldUid = document.getElementById('r-old-uid').value;
+    const oldIdx = contracts.findIndex(c => c.uid === oldUid);
+    if (oldIdx === -1) {
+      alert("找不到原契約資料！");
+      return;
+    }
+
+    const oldContract = contracts[oldIdx];
     const oldId = String(document.getElementById('r-old-id').value).trim();
     const oldAmount = Number(document.getElementById('r-old-amount').value);
     const adjust = Number(document.getElementById('r-adjust-amount').value) || 0;
@@ -1381,7 +1451,8 @@
     }
 
     const newId = String(document.getElementById('r-new-id').value).trim();
-    const isConflict = contracts.some((c, i) => i !== idx && c.status === "合約有效" && String(c.id) === newId);
+    // 檢查是否有「另一張正在進行中」的合約使用同一序號
+    const isConflict = contracts.some((c) => c.uid !== oldUid && c.status === "合約有效" && String(c.id) === newId);
     if (isConflict) {
       alert(`合約序號 #${newId} 已存在於另一張進行中的合約，請使用不同序號！`);
       return;
@@ -1395,9 +1466,12 @@
     let oldStatus = "已期滿續約";
     if (adjust < 0) oldStatus = "部分回金換約";
     if (adjust > 0) oldStatus = "加碼換約";
-    contracts[idx].status = oldStatus;
+    oldContract.status = oldStatus;
 
+    // 產生專屬全新 uid，保持流水帳防呆精確，同時 id 維持不變以繼續累積領息
+    const newUid = `C_${newId}_${newStart.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
     contracts.push({
+      uid: newUid,
       id: newId,
       term: newTerm,
       amount: newTotal,
@@ -1437,7 +1511,7 @@
       item.className = 'selection-card';
       item.innerHTML = `
         <div class="d-flex align-items-center gap-3">
-          <input class="form-check-input merge-checkbox" type="checkbox" value="${c.id}" data-amount="${c.amount}" onchange="updateMergeSummary()">
+          <input class="form-check-input merge-checkbox" type="checkbox" value="${c.id}" data-uid="${c.uid}" data-amount="${c.amount}" onchange="updateMergeSummary()">
           <div>
             <span class="num-font fw-bold" style="color: var(--accent-blue);">契約 #${c.id}</span>
             <span class="text-secondary small ms-2">${c.term} | 月利率 ${c.rate}%</span>
@@ -1471,12 +1545,14 @@
   function submitMergeContract(e) {
     e.preventDefault();
     const checkboxes = document.querySelectorAll('.merge-checkbox');
+    const selectedUids = [];
     const selectedIds = [];
     let oldSum = 0;
 
     checkboxes.forEach(cb => {
       if (cb.checked) {
         selectedIds.push(cb.value);
+        selectedUids.push(cb.dataset.uid);
         oldSum += Number(cb.dataset.amount);
       }
     });
@@ -1490,7 +1566,7 @@
     }
 
     const newId = document.getElementById('m-id').value.trim();
-    if (contracts.some(c => c.status === "合約有效" && c.id === newId)) {
+    if (contracts.some(c => c.status === "合約有效" && String(c.id) === newId)) {
       alert(`有效契約序號 #${newId} 已存在，請使用不同序號！`);
       return;
     }
@@ -1499,12 +1575,14 @@
     const userNote = document.getElementById('m-note').value.trim();
 
     contracts.forEach(c => {
-      if (selectedIds.includes(c.id)) {
+      if (selectedUids.includes(c.uid) || selectedIds.includes(c.id)) {
         c.status = "已合併";
       }
     });
 
+    const newUid = `C_${newId}_${startDate.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
     contracts.push({
+      uid: newUid,
       id: newId,
       term: document.getElementById('m-term').value,
       amount: finalAmount,
@@ -1596,17 +1674,21 @@
   document.getElementById('form-contract').addEventListener('submit', function(e) {
     e.preventDefault();
     const newId = document.getElementById('c-id').value.trim();
-    if (contracts.some(c => c.status === "合約有效" && c.id === newId)) {
+    if (contracts.some(c => c.status === "合約有效" && String(c.id) === newId)) {
       alert("已有同序號之有效契約存在！");
       return;
     }
 
+    const startDate = document.getElementById('c-start').value;
+    const newUid = `C_${newId}_${startDate.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
+
     contracts.push({
+      uid: newUid,
       id: newId,
       term: document.getElementById('c-term').value,
       amount: Number(document.getElementById('c-amount').value),
       rate: Number(document.getElementById('c-rate').value),
-      startDate: document.getElementById('c-start').value,
+      startDate: startDate,
       status: "合約有效"
     });
 
@@ -1644,6 +1726,7 @@
           contracts = imported.contracts;
           payouts = imported.payouts;
           topupLogs = imported.topupLogs || [];
+          ensureDataIntegrity();
           saveData();
           renderApp();
           alert("資料還原成功，並已全數同步至雲端資料庫！");
