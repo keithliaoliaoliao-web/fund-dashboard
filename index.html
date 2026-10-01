@@ -116,7 +116,6 @@
       color: #FFF;
       box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
     }
-    .btn-purple-glow:hover { background: #6366F1; color: #FFF; }
 
     .table-dark-fintech {
       --bs-table-bg: transparent;
@@ -504,14 +503,14 @@
   </div>
 </div>
 
-<!-- Modal: 批量領息對話框 -->
+<!-- Modal: 批量領息對話框 (含舊約最後一期自動浮現智慧機制) -->
 <div class="modal fade" id="modalBatchPayout" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <div>
           <h5 class="modal-title fw-bold">💰 登記現金配息入帳</h5>
-          <p class="text-secondary small mb-0 mt-1">當月可領自動預選；本月已領自動取消勾選；跨月新合約反灰鎖定</p>
+          <p class="text-secondary small mb-0 mt-1">智慧雙軌過濾：舊約最後一期自動浮現結算；接續換約自動解鎖；跨月首期精準防呆</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -525,7 +524,7 @@
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="show-merged-payout" onchange="handlePayoutDateChange()">
               <label class="form-check-label small" for="show-merged-payout" style="color: #E2E8F0 !important; font-weight: 500;">
-                顯示已期滿/已換約合約 (補登舊利息)
+                顯示更多歷史/已換約合約 (手動補登)
               </label>
             </div>
             <div class="form-check">
@@ -769,9 +768,7 @@
   let modalConfirmPayoutInstance = null;
   let pendingPayoutRecords = [];
 
-  // ==========================================
-  // 核心時間輔助函式 (徹底消滅 UTC 時區倒退 Bug)
-  // ==========================================
+  // 本地日期格式化輔助函式 (防止時區倒退)
   function formatLocalDate(date = new Date()) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -802,7 +799,6 @@
     const originalDay = d.getDate();
     
     d.setMonth(d.getMonth() + months);
-    // 若月份溢位 (例如 8/31 變 3/3)，校正回上個月最後一天 (2/28)
     if (d.getDate() < originalDay) {
       d.setDate(0);
     }
@@ -831,7 +827,7 @@
       dbRef.on("value", (snapshot) => {
         const cloudData = snapshot.val();
         
-        // 核心防呆：若雲端為空或合約數為 0，自動上傳種子資料並即時渲染
+        // 核心防呆：若雲端為空，自動上傳種子資料並即時渲染
         if (!cloudData || !cloudData.contracts || cloudData.contracts.length === 0) {
           contracts = JSON.parse(JSON.stringify(DEFAULT_CONTRACTS));
           payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
@@ -844,7 +840,6 @@
           });
           renderApp();
         } else {
-          // 雲端已有數據，以雲端為唯一真實來源
           contracts = cloudData.contracts || [];
           payouts = cloudData.payouts || [];
           topupLogs = cloudData.topupLogs || [];
@@ -1069,51 +1064,109 @@
     renderBatchPayoutItems(selectedDate);
   }
 
+  // =========================================================================
+  // 核心升級：智慧雙軌領息判定 (舊約最後一期自動浮現結算 + 連續換約解鎖 + 補登解鎖)
+  // =========================================================================
   function renderBatchPayoutItems(payoutDateStr) {
     const listContainer = document.getElementById('batch-payout-list');
     listContainer.innerHTML = "";
 
     const showMerged = document.getElementById('show-merged-payout').checked;
-    const targetContracts = contracts.filter(c => c.status === "合約有效" || (showMerged && c.status !== "合約有效"));
+    const payoutYM = payoutDateStr.substring(0, 7);
 
-    if (targetContracts.length === 0) {
+    // 彙整候選合約清單
+    const candidateItems = [];
+
+    contracts.forEach(c => {
+      if (c.status === "合約有效") {
+        candidateItems.push({ contract: c, isOldPendingFinal: false });
+      } else {
+        // 檢查已期滿/已換約的舊合約，在其到期月份是否漏領了最後一期？
+        const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
+        const hasPaidInCurrentPayoutMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
+        
+        // 若到期月小於等於入帳月，且當月尚未領息，判定為「待領最後一期」！
+        const isOldPendingFinal = (payoutYM >= endYM) && !hasPaidInCurrentPayoutMonth;
+
+        if (isOldPendingFinal || showMerged) {
+          candidateItems.push({ contract: c, isOldPendingFinal: isOldPendingFinal });
+        }
+      }
+    });
+
+    if (candidateItems.length === 0) {
       listContainer.innerHTML = `<div class="text-center text-secondary py-4">無符合可領息條件的合約項目。</div>`;
       updateBatchSummary();
       return;
     }
 
-    const payoutYM = payoutDateStr.substring(0, 7);
     let selectableCount = 0;
 
-    targetContracts.forEach(c => {
+    candidateItems.forEach(item => {
+      const c = item.contract;
+      const isOldPendingFinal = item.isOldPendingFinal;
       const startYM = c.startDate.substring(0, 7);
-      // 跨月首期鎖定判定：若生效月份大於等於入帳月，首期尚未滿月
-      const isMatured = payoutYM > startYM;
-      // 檢查當月是否已經有過領息紀錄 (重複防呆)
+
+      // 檢查該合約過去是否已有領息歷史 (連續性判定)
+      const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < payoutYM);
+      // 檢查本月份是否已經登記過
       const isAlreadyPaidThisMonth = payouts.some(p => String(p.contractId) === String(c.id) && p.date.startsWith(payoutYM));
-      
-      const isEligible = isMatured && (c.status === "合約有效" || showMerged);
-      const defaultChecked = isEligible && !isAlreadyPaidThisMonth;
+
+      let canSelect = false;
+      let defaultChecked = false;
+      let statusBadge = "";
+
+      if (isOldPendingFinal) {
+        // 【軌道 1：舊約最後一期自動浮現】
+        canSelect = true;
+        defaultChecked = true;
+        statusBadge = `<span class="status-pill pill-alert ms-2">🏁 舊約期滿結算 (最後一期)</span>`;
+      } else if (c.status !== "合約有效") {
+        // 【軌道 2：手動勾選補登的歷史合約】
+        canSelect = true; // 徹底解鎖！不再反灰！
+        defaultChecked = !isAlreadyPaidThisMonth;
+        statusBadge = `<span class="status-pill pill-merged ms-2">${c.status}(補登)</span>`;
+        if (isAlreadyPaidThisMonth) {
+          statusBadge += ` <span class="status-pill pill-active ms-1">✅ 已領過</span>`;
+        }
+      } else {
+        // 【軌道 3：生效中的合約】
+        // 若入帳月大於生效月，或該合約具備歷史配息 (換約延續)，均視為成熟合約！
+        const isMatured = (payoutYM > startYM) || hasPriorPayouts;
+
+        if (!isMatured) {
+          // 真正全新的初次起息合約，嚴格執行跨月首期鎖定
+          canSelect = false;
+          defaultChecked = false;
+          statusBadge = `<span class="status-pill pill-neutral ms-2">🔒 跨月首期 (次月起領)</span>`;
+        } else {
+          canSelect = true;
+          defaultChecked = !isAlreadyPaidThisMonth;
+          if (isAlreadyPaidThisMonth) {
+            statusBadge = `<span class="status-pill pill-active ms-2">✅ ${payoutYM.split('-')[1]}月已領</span>`;
+          } else if (startYM === payoutYM && hasPriorPayouts) {
+            statusBadge = `<span class="status-pill pill-active ms-2">🔄 接續換約期</span>`;
+          }
+        }
+      }
 
       if (defaultChecked) selectableCount++;
       const fixedGain = Math.round(c.amount * 10000 * (c.rate / 100));
 
       const rowDiv = document.createElement('label');
-      rowDiv.className = `selection-card ${!isEligible ? 'disabled-card' : ''}`;
+      rowDiv.className = `selection-card ${!canSelect ? 'disabled-card' : ''}`;
       rowDiv.innerHTML = `
         <div class="d-flex align-items-center gap-3">
           <input class="form-check-input payout-checkbox" type="checkbox" 
                  ${defaultChecked ? 'checked' : ''} 
-                 ${!isEligible ? 'disabled' : ''} 
+                 ${!canSelect ? 'disabled' : ''} 
                  value="${c.id}" 
                  data-gain="${fixedGain}" 
                  onchange="updateBatchSummary()">
           <div>
             <span class="num-font fw-bold" style="color: var(--accent-blue);">契約 #${c.id}</span>
             <span class="text-secondary small ms-2">${c.term} | ${c.amount}萬 (${c.rate}%)</span>
-            ${c.status !== '合約有效' ? `<span class="status-pill pill-merged ms-2">${c.status}(補登)</span>` : ''}
-            ${!isMatured ? `<span class="status-pill pill-neutral ms-2">🔒 跨月首期 (次月起領)</span>` : ''}
-            ${isAlreadyPaidThisMonth ? `<span class="status-pill pill-active ms-2">✅ ${payoutYM.split('-')[1]}月已領</span>` : ''}
+            ${statusBadge}
           </div>
         </div>
         <div>
@@ -1258,7 +1311,7 @@
     }
   }
 
-  // 核心升級：續約換約無縫承接 (舊約封存保護歷史，新約上線)
+  // 續約升級：舊約歷史完整封存，新約無縫上線
   function submitRenewContract(e) {
     e.preventDefault();
     const idx = Number(document.getElementById('r-old-index').value);
@@ -1284,7 +1337,7 @@
     const newStart = document.getElementById('r-new-start').value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    // 1. 將舊約標記封存 (無論是否同名，舊約歷史起息日完整保留，不阻擋最後一期領息)
+    // 1. 將舊約標記封存 (歷史起息日與條款妥善保存，供期滿末期結算使用)
     let oldStatus = "已期滿續約";
     if (adjust < 0) oldStatus = "部分回金換約";
     if (adjust > 0) oldStatus = "加碼換約";
@@ -1546,7 +1599,7 @@
       } catch (err) {
         alert("還原失敗：JSON 格式無效。");
       } finally {
-        event.target.value = ""; // 重設 input，確保重複上傳同檔案可正常觸發
+        event.target.value = "";
       }
     };
     reader.readAsText(file);
