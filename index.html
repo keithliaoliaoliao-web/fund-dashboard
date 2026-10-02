@@ -131,32 +131,32 @@
     }
     .table-dark-fintech th {
       color: #CBD5E1 !important;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       border-bottom: 1px solid var(--card-border);
-      padding: 14px 16px;
-      background: rgba(11, 15, 25, 0.6);
+      padding: 14px 14px;
+      background: rgba(11, 15, 25, 0.7);
       white-space: nowrap;
     }
     .table-dark-fintech td {
       vertical-align: middle;
-      padding: 16px 16px;
-      font-size: 0.925rem;
+      padding: 13px 14px;
+      font-size: 0.9rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       color: var(--text-main);
       white-space: nowrap;
     }
-    .table-dark-fintech tbody tr:hover { background-color: rgba(255, 255, 255, 0.03); }
+    .table-dark-fintech tbody tr:hover { background-color: rgba(255, 255, 255, 0.04) !important; }
 
     .status-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
+      gap: 5px;
+      padding: 3px 9px;
       border-radius: 9999px;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 500;
       white-space: nowrap;
     }
@@ -177,23 +177,23 @@
     .pill-merged .status-dot { background-color: #818CF8; }
 
     .pill-alert {
-      background: rgba(251, 113, 133, 0.15);
+      background: rgba(251, 113, 133, 0.18);
       color: #FB7185;
-      border: 1px solid rgba(251, 113, 133, 0.3);
+      border: 1px solid rgba(251, 113, 133, 0.4);
       animation: pulse-glow 2s infinite;
     }
     .pill-alert .status-dot { background-color: #FB7185; }
 
     .pill-warning {
-      background: rgba(251, 191, 36, 0.15);
+      background: rgba(251, 191, 36, 0.18);
       color: #FBBF24;
-      border: 1px solid rgba(251, 191, 36, 0.3);
+      border: 1px solid rgba(251, 191, 36, 0.4);
     }
     .pill-warning .status-dot { background-color: #FBBF24; }
 
     .pill-neutral {
       background: rgba(148, 163, 184, 0.12);
-      color: #E2E8F0;
+      color: #CBD5E1;
       border: 1px solid rgba(148, 163, 184, 0.25);
     }
     .pill-neutral .status-dot { background-color: #94A3B8; }
@@ -357,12 +357,12 @@
     </div>
   </div>
 
-  <!-- 契約即時排程監控主表 -->
+  <!-- 契約即時排程監控主表 (全新優化：8欄精實架構、免橫向滾動、即期高亮) -->
   <div class="dark-card mb-4 p-0" style="overflow: hidden;">
     <div class="p-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
         <h5 class="fw-bold mb-0">合約監控主表</h5>
-        <span class="text-secondary small">高對比排版、一鍵續約/回金換約、週三交割日與到期提醒</span>
+        <span class="text-secondary small">高對比排版、即期合約金框高亮、走期整合免捲動</span>
       </div>
       <div class="form-check form-check-inline m-0">
         <input class="form-check-input" type="checkbox" id="filter-show-decommissioned" checked onchange="renderApp()">
@@ -375,18 +375,14 @@
       <table class="table table-dark-fintech align-middle">
         <thead>
           <tr>
-            <th>契約序號</th>
-            <th style="min-width: 65px;">長度</th>
-            <th>本金 (萬)</th>
-            <th>月利率 %</th>
-            <th>預計月收益 (元)</th>
-            <th style="color: var(--accent-emerald);">累計領息 (元) / 回收率</th>
-            <th>起息日</th>
-            <th>到期日</th>
-            <th>交割日 (週三生效)</th>
-            <th>期滿倒數</th>
-            <th>狀態與提醒</th>
-            <th class="text-end">管理操作</th>
+            <th style="min-width: 90px;">契約序號</th>
+            <th style="min-width: 95px;">本金規模</th>
+            <th style="min-width: 105px;">預計月收益</th>
+            <th style="min-width: 135px; color: var(--accent-emerald);">累計領息 / 回收</th>
+            <th style="min-width: 195px;">合約走期與交割</th>
+            <th style="min-width: 95px;">期滿倒數</th>
+            <th style="min-width: 150px;">警示與提醒</th>
+            <th class="text-end" style="min-width: 110px;">管理操作</th>
           </tr>
         </thead>
         <tbody id="contract-rows"></tbody>
@@ -925,7 +921,7 @@
   }
 
   // =========================================================================
-  // 核心畫面渲染
+  // 核心畫面渲染 (主表格升級為 8 欄、即期金色框高亮、免橫向滾動)
   // =========================================================================
   function renderApp() {
     const today = new Date();
@@ -997,7 +993,7 @@
       `;
     }
 
-    // 方案 3 計算：本金回收覆蓋率、淨風險敞口與回本時程
+    // 方案 3：本金回收覆蓋率、淨風險敞口與回本時程
     const totalPrincipalDollars = totalPrincipal * 10000;
     const paybackRate = totalPrincipalDollars > 0 ? ((totalInterestDollars / totalPrincipalDollars) * 100) : 0;
     const netRiskDollars = Math.max(0, totalPrincipalDollars - totalInterestDollars);
@@ -1015,7 +1011,6 @@
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 渲染卡片 3 的進度條
     document.getElementById('kpi-payback-rate').innerText = `${paybackRate.toFixed(2)}%`;
     document.getElementById('kpi-payback-months').innerText = paybackMonthsText;
     document.getElementById('kpi-net-risk').innerText = `${netRisk} 萬`;
@@ -1029,7 +1024,7 @@
       barElem.className = "progress-bar bg-warning";
     }
 
-    // 渲染主監控表 (累計領息欄位整合個別回收率)
+    // 渲染主監控表 (8欄高密度排版)
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
@@ -1053,7 +1048,6 @@
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
-      // 個別合約回收率計算
       const contractPrincipalDollars = Number(c.amount) * 10000;
       const contractPaybackRate = contractPrincipalDollars > 0 ? ((cumInterest / contractPrincipalDollars) * 100).toFixed(1) : 0;
 
@@ -1063,50 +1057,111 @@
       const isMatured = (currentYM > startYM) || hasPriorPayouts;
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && isMatured;
 
-      let statusBadge = `<span class="status-pill pill-active"><span class="status-dot"></span>合約有效</span>`;
+      // 警示標籤陣列：消除冗餘的合約有效標籤，只亮起關鍵動作標籤
+      let alerts = [];
       if (isDecommissioned) {
-        statusBadge = `<span class="status-pill pill-merged"><span class="status-dot"></span>${c.status}</span>`;
+        alerts.push(`<span class="status-pill pill-merged"><span class="status-dot"></span>${c.status}</span>`);
+      } else {
+        if (isExpired) {
+          alerts.push(`<span class="status-pill pill-alert"><span class="status-dot"></span>已期滿待換約</span>`);
+        } else if (isNegotiationPeriod) {
+          alerts.push(`<span class="status-pill pill-warning"><span class="status-dot"></span>🔔 續約洽談</span>`);
+        }
+
+        if (isFinalMonth) {
+          alerts.push(`<span class="status-pill pill-alert"><span class="status-dot"></span>🏁 本月期滿</span>`);
+        }
+
+        if (isOverdue) {
+          alerts.push(`<span class="status-pill pill-warning"><span class="status-dot"></span>⚠️ 待領息</span>`);
+        }
+
+        if (alerts.length === 0) {
+          alerts.push(`<span class="text-secondary small num-font">● 正常生息中</span>`);
+        }
+      }
+
+      // 倒數膠囊樣式
+      let countdownPill = "";
+      if (isDecommissioned) {
+        countdownPill = `<span class="status-pill pill-neutral num-font">已除役</span>`;
       } else if (isExpired) {
-        statusBadge = `<span class="status-pill pill-alert"><span class="status-dot"></span>已期滿待換約</span>`;
+        countdownPill = `<span class="status-pill pill-alert num-font fw-bold"><span class="status-dot"></span>期滿</span>`;
       } else if (isNegotiationPeriod) {
-        statusBadge = `<span class="status-pill pill-warning"><span class="status-dot"></span>🔔 續約洽談期</span>`;
+        countdownPill = `<span class="status-pill pill-warning num-font fw-bold"><span class="status-dot"></span>${daysLeft} 天</span>`;
+      } else {
+        countdownPill = `<span class="status-pill pill-neutral num-font">${daysLeft} 天</span>`;
       }
 
-      if (isFinalMonth) {
-        statusBadge += ` <span class="status-pill pill-alert ms-1"><span class="status-dot"></span>🏁 本月期滿最後一期</span>`;
-      } else if (isOverdue) {
-        statusBadge += ` <span class="status-pill pill-warning ms-1"><span class="status-dot"></span>⚠️ 待領息</span>`;
-      }
-
+      // 視覺優先級：即期或期滿合約賦予整列金色高亮邊框與輕微底色
       const tr = document.createElement('tr');
+      tr.style.transition = "all 0.2s ease";
+
       if (isDecommissioned) {
-        tr.style.opacity = "0.6";
+        tr.style.opacity = "0.55";
+        tr.style.borderLeft = "4px solid transparent";
+      } else if (isExpired) {
+        tr.style.background = "rgba(251, 113, 133, 0.08)";
+        tr.style.borderLeft = "4px solid var(--accent-rose)";
+      } else if (isNegotiationPeriod || isFinalMonth) {
+        tr.style.background = "rgba(245, 158, 11, 0.08)";
+        tr.style.borderLeft = "4px solid var(--accent-amber)";
+      } else {
+        tr.style.borderLeft = "4px solid transparent";
       }
 
       tr.innerHTML = `
-        <td><span class="num-font fw-bold" style="color: var(--accent-blue);">#${c.id}</span></td>
-        <td><span class="badge bg-light text-dark border px-2 py-1">${c.term}</span></td>
-        <td class="num-font fw-bold fs-6">${c.amount} 萬</td>
-        <td class="num-font fw-semibold" style="color: var(--accent-rate);">${c.rate}%</td>
-        <td class="num-font fw-bold" style="color: var(--accent-emerald);">${c.status === '合約有效' ? monthlyGain.toLocaleString() : '-'}</td>
+        <!-- 1. 契約序號與期長合併 -->
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <span class="num-font fw-bold fs-6" style="color: var(--accent-blue);">#${c.id}</span>
+            <span class="status-pill pill-neutral" style="font-size: 0.68rem; padding: 2px 7px;">${c.term}</span>
+          </div>
+        </td>
+
+        <!-- 2. 本金規模與利率整合 -->
+        <td>
+          <div class="num-font fw-bold fs-6">${c.amount} 萬</div>
+          <div class="num-font" style="font-size: 0.75rem; color: var(--accent-rate);">${c.rate}% /月</div>
+        </td>
+
+        <!-- 3. 預計月收益 -->
+        <td>
+          <span class="num-font fw-bold" style="color: var(--accent-emerald);">${c.status === '合約有效' ? monthlyGain.toLocaleString() + ' 元' : '-'}</span>
+        </td>
+
+        <!-- 4. 累計領息與回收率整合 -->
         <td>
           <div class="num-font fw-bold" style="color: var(--accent-emerald);">${cumInterest.toLocaleString()} 元</div>
-          <div class="text-secondary small" style="font-size: 0.72rem;">回收率 <span class="num-font text-white">${contractPaybackRate}%</span></div>
+          <div class="d-flex align-items-center gap-1 mt-1">
+            <span class="status-pill ${Number(contractPaybackRate) >= 50 ? 'pill-active' : 'pill-neutral'}" style="font-size: 0.65rem; padding: 1px 6px;">
+              回收 ${contractPaybackRate}%
+            </span>
+          </div>
         </td>
-        <td class="num-font" style="color: var(--text-muted);">${c.startDate}</td>
-        <td class="num-font" style="color: var(--text-muted);">${endDate}</td>
-        <td><span class="status-pill pill-neutral num-font">${nextWed}</span></td>
+
+        <!-- 5. 走期與週三交割日整合 (兩行緊湊排版) -->
         <td>
-          <span class="status-pill ${isNegotiationPeriod || isExpired ? 'pill-alert' : 'pill-neutral'} num-font">
-            <span class="status-dot"></span>${c.status === '合約有效' ? daysLeft + ' 天' : '已除役'}
-          </span>
+          <div class="num-font" style="font-size: 0.85rem; color: var(--text-main);">${c.startDate} <span class="text-secondary">➔</span> ${endDate}</div>
+          <div class="text-secondary small mt-1" style="font-size: 0.72rem;">交割：<span class="num-font text-white">${nextWed}</span> (週三)</div>
         </td>
-        <td>${statusBadge}</td>
-        <td class="text-end">
+
+        <!-- 6. 期滿倒數 -->
+        <td>${countdownPill}</td>
+
+        <!-- 7. 警示與提醒 (無雜訊) -->
+        <td>
+          <div class="d-flex flex-wrap gap-1 align-items-center">
+            ${alerts.join('')}
+          </div>
+        </td>
+
+        <!-- 8. 管理操作 (右側對齊、保證不被截斷) -->
+        <td class="text-end text-nowrap">
           ${c.status === '合約有效' ? `
-            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.4); font-size: 0.75rem; padding: 3px 8px;" onclick="openRenewModal('${c.uid || index}')">🔄 續約/異動</button>
+            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.4); font-size: 0.75rem; padding: 4px 10px;" onclick="openRenewModal('${c.uid || index}')">🔄 續約</button>
           ` : ''}
-          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 3px 8px; font-size: 0.75rem;" onclick="deleteContract(${index})">🗑️</button>
+          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 4px 8px; font-size: 0.75rem;" onclick="deleteContract(${index})">🗑️</button>
         </td>
       `;
       tbody.appendChild(tr);
