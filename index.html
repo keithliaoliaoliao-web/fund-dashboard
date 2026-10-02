@@ -12,9 +12,10 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Google Firebase SDK -->
+  <!-- Google Firebase SDK (包含 Database 與 Auth) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <style>
     :root {
@@ -261,22 +262,26 @@
       <div class="d-flex align-items-center gap-2">
         <h3 class="fw-bold mb-0" style="letter-spacing: -0.03em;">💼 私募基金投資終端</h3>
         <span class="status-pill pill-active" id="cloud-sync-status"><span class="status-dot"></span>雲端連線中...</span>
+        <!-- 管理員鎖定狀態標籤 -->
+        <button class="btn btn-action py-1 px-3 ms-2" id="btn-auth-status" style="font-size: 0.78rem;" onclick="handleAuthButtonClick()">
+          🔒 訪客模式 (點擊解鎖)
+        </button>
       </div>
       <p class="text-secondary small mb-0 mt-1" id="update-date">系統基期加載中...</p>
     </div>
     
     <div class="d-flex flex-wrap gap-2">
-      <button class="btn btn-action btn-blue-glow" data-bs-toggle="modal" data-bs-target="#modalAddContract">＋ 新增契約</button>
-      <button class="btn btn-action btn-purple-glow" onclick="openMergeModal()">🔀 合約合併與加碼</button>
-      <button class="btn btn-action btn-emerald-glow" onclick="openBatchPayoutModal()">💰 登記現金領息</button>
+      <button class="btn btn-action btn-blue-glow" onclick="requireAuth(() => new bootstrap.Modal(document.getElementById('modalAddContract')).show())">＋ 新增契約</button>
+      <button class="btn btn-action btn-purple-glow" onclick="requireAuth(openMergeModal)">🔀 合約合併與加碼</button>
+      <button class="btn btn-action btn-emerald-glow" onclick="requireAuth(openBatchPayoutModal)">💰 登記現金領息</button>
       <button class="btn btn-action" onclick="openPayoutHistoryModal()">📜 領息流水細項</button>
       <button class="btn btn-action" onclick="exportData()">💾 備份 JSON</button>
-      <button class="btn btn-action" onclick="document.getElementById('file-import').click()">📂 還原備份</button>
+      <button class="btn btn-action" onclick="requireAuth(() => document.getElementById('file-import').click())">📂 還原備份</button>
       <input type="file" id="file-import" class="d-none" accept=".json" onchange="importData(event)">
     </div>
   </div>
 
-  <!-- 四大核心 KPI 卡片 (第三張內建資本回收覆蓋進度條) -->
+  <!-- 四大核心 KPI 卡片 -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
       <div class="dark-card">
@@ -357,12 +362,12 @@
     </div>
   </div>
 
-  <!-- 契約即時排程監控主表 (全新優化：8欄精實架構、免橫向滾動、即期高亮) -->
+  <!-- 契約即時排程監控主表 -->
   <div class="dark-card mb-4 p-0" style="overflow: hidden;">
     <div class="p-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
         <h5 class="fw-bold mb-0">合約監控主表</h5>
-        <span class="text-secondary small">高對比排版、即期合約金框高亮、走期整合免捲動</span>
+        <span class="text-secondary small">高對比排版、即期金框高亮、支援到期完全回金結案</span>
       </div>
       <div class="form-check form-check-inline m-0">
         <input class="form-check-input" type="checkbox" id="filter-show-decommissioned" checked onchange="renderApp()">
@@ -381,8 +386,8 @@
             <th style="min-width: 135px; color: var(--accent-emerald);">累計領息 / 回收</th>
             <th style="min-width: 195px;">合約走期與交割</th>
             <th style="min-width: 95px;">期滿倒數</th>
-            <th style="min-width: 150px;">警示與提醒</th>
-            <th class="text-end" style="min-width: 110px;">管理操作</th>
+            <th style="min-width: 140px;">警示與提醒</th>
+            <th class="text-end" style="min-width: 140px;">管理操作</th>
           </tr>
         </thead>
         <tbody id="contract-rows"></tbody>
@@ -395,7 +400,7 @@
     <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
         <h6 class="fw-bold mb-0">📝 合約加碼與資本異動歷史紀錄</h6>
-        <span class="text-secondary small">記錄資本注資加碼、部分回金換約及資本變化歷程</span>
+        <span class="text-secondary small">記錄注資加碼、換約與到期完全回金退場歷程</span>
       </div>
     </div>
     <div class="table-responsive">
@@ -412,6 +417,32 @@
         </thead>
         <tbody id="topup-log-rows"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 管理員登入對話框 -->
+<div class="modal fade" id="modalAuthLogin" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="border: 1px solid var(--accent-blue);">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold">🔐 管理員權限解鎖</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-3">
+        <form id="form-auth-login" onsubmit="submitAuthLogin(event)">
+          <div class="mb-3">
+            <label class="form-label small">管理員信箱</label>
+            <input type="email" id="auth-email" class="form-control form-control-sm" required placeholder="admin@example.com">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">安全密碼</label>
+            <input type="password" id="auth-password" class="form-control form-control-sm" required placeholder="••••••••">
+          </div>
+          <div id="auth-error-msg" class="text-danger small mb-2 d-none"></div>
+          <button type="submit" class="btn btn-action btn-blue-glow w-100 py-2">驗證身分解鎖</button>
+        </form>
+      </div>
     </div>
   </div>
 </div>
@@ -527,6 +558,50 @@
           </div>
 
           <button type="submit" class="btn btn-action btn-blue-glow w-100 py-2 mt-4">確認換約並生效新契約</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 到期完全回金退場對話框 (結案封存) -->
+<div class="modal fade" id="modalReturnCapital" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border: 2px solid var(--accent-rose);">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" style="color: var(--accent-rose);">💸 合約到期完全回金 (結案退場)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="form-return-capital" onsubmit="submitReturnCapital(event)">
+          <input type="hidden" id="ret-contract-uid">
+          <input type="hidden" id="ret-contract-id">
+          <input type="hidden" id="ret-contract-amount">
+
+          <div class="p-3 mb-3 rounded-3" style="background: rgba(251, 113, 133, 0.08); border: 1px solid rgba(251, 113, 133, 0.2);">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span class="fw-bold fs-5" style="color: var(--accent-blue);" id="ret-display-id">契約 #</span>
+                <div class="text-secondary small mt-1" id="ret-display-detail">到期日： | 回金總額： 萬元</div>
+              </div>
+              <span class="status-pill pill-alert">本金全額抽回</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small">本金交割退款日期 (生效月份起不再計息)</label>
+            <input type="date" id="ret-date" class="form-control" required onclick="this.showPicker()">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">回金結案說明備註</label>
+            <input type="text" id="ret-note" class="form-control" placeholder="如：合約期滿不再續約，本金全數領回落袋">
+          </div>
+
+          <div class="small text-secondary mb-3">
+            💡 系統說明：本操作會將合約轉為「已全額回金」除役封存，在約本金與月產能將即時扣除；歷史月份之本金規模與累計領息將被嚴格保留。
+          </div>
+
+          <button type="submit" class="btn btn-action btn-outline-danger w-100 py-2">確認全額收回本金並除役</button>
         </form>
       </div>
     </div>
@@ -737,7 +812,6 @@
     measurementId: "G-TD240CP07T"
   };
 
-  // 預設 7 筆合約種子資料
   const DEFAULT_CONTRACTS = [
     { uid: "C_1_SEED", id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
     { uid: "C_2_SEED", id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
@@ -748,7 +822,6 @@
     { uid: "C_7_SEED", id: "7", term: "一年", amount: 80, rate: 2.0, startDate: "2026-08-19", status: "合約有效" }
   ];
 
-  // 預設領息流水帳種子資料 (6月~9月)
   const DEFAULT_PAYOUTS = [
     { contractId: "1", contractUid: "C_1_SEED", date: "2026-06-18", amount: 14400 },
     { contractId: "2", contractUid: "C_2_SEED", date: "2026-06-18", amount: 3600 },
@@ -780,7 +853,6 @@
     { contractId: "7", contractUid: "C_7_SEED", date: "2026-09-19", amount: 16000 }
   ];
 
-  // 預設加碼紀錄種子資料
   const DEFAULT_TOPUPS = [
     { id: "TOP-1", date: "2026-07-01", contractId: "5", topupAmount: 20, oldAmount: 50, newAmount: 70, note: "加碼20萬，利率調為1.8% (2026-07 生效)" }
   ];
@@ -792,12 +864,15 @@
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
   let currentChartMode = 'snowball';
+  let currentUser = null; // 管理員登入狀態物件
 
   let modalBatchPayoutInstance = null;
   let modalMergeContractInstance = null;
   let modalPayoutHistoryInstance = null;
   let modalRenewContractInstance = null;
   let modalConfirmPayoutInstance = null;
+  let modalReturnCapitalInstance = null;
+  let modalAuthLoginInstance = null;
   let pendingPayoutRecords = [];
 
   function formatLocalDate(date = new Date()) {
@@ -849,7 +924,7 @@
       }
     });
 
-    if (modified) {
+    if (modified && currentUser) {
       saveData();
     }
   }
@@ -861,17 +936,77 @@
     return String(p.contractId) === String(c.id);
   }
 
+  // ==========================================
+  // 管理員權限驗證核心模組
+  // ==========================================
+  function handleAuthButtonClick() {
+    if (currentUser) {
+      if (confirm(`目前已解鎖管理員身分 (${currentUser.email})。\n是否要登出返回唯讀訪客模式？`)) {
+        firebase.auth().signOut().then(() => {
+          alert("已安全登出，終端已恢復為訪客唯讀模式。");
+        });
+      }
+    } else {
+      document.getElementById('auth-error-msg').classList.add('d-none');
+      document.getElementById('form-auth-login').reset();
+      modalAuthLoginInstance.show();
+    }
+  }
+
+  function submitAuthLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    const pass = document.getElementById('auth-password').value;
+    const errorMsg = document.getElementById('auth-error-msg');
+
+    firebase.auth().signInWithEmailAndPassword(email, pass)
+      .then((userCredential) => {
+        modalAuthLoginInstance.hide();
+        alert(`🎉 權限解鎖成功！歡迎回來，管理員。`);
+      })
+      .catch((error) => {
+        errorMsg.innerText = `登入失敗：${error.message}`;
+        errorMsg.classList.remove('d-none');
+      });
+  }
+
+  // 操作防呆攔截函式
+  function requireAuth(actionCallback) {
+    if (!currentUser) {
+      alert("⚠️ 權限受阻：目前處於「唯讀訪客模式」，只有管理員可執行此變更！\n請先點擊上方按鈕登理解鎖。");
+      modalAuthLoginInstance.show();
+      return;
+    }
+    actionCallback();
+  }
+
   function initData() {
     modalBatchPayoutInstance = new bootstrap.Modal(document.getElementById('modalBatchPayout'));
     modalMergeContractInstance = new bootstrap.Modal(document.getElementById('modalMergeContract'));
     modalPayoutHistoryInstance = new bootstrap.Modal(document.getElementById('modalPayoutHistory'));
     modalRenewContractInstance = new bootstrap.Modal(document.getElementById('modalRenewContract'));
     modalConfirmPayoutInstance = new bootstrap.Modal(document.getElementById('modalConfirmPayout'));
+    modalReturnCapitalInstance = new bootstrap.Modal(document.getElementById('modalReturnCapital'));
+    modalAuthLoginInstance = new bootstrap.Modal(document.getElementById('modalAuthLogin'));
 
     try {
       if (!firebase.apps.length) {
         firebase.initializeApp(FIREBASE_CONFIG);
       }
+
+      // 監聽管理員登入狀態
+      firebase.auth().onAuthStateChanged((user) => {
+        currentUser = user;
+        const authBtn = document.getElementById('btn-auth-status');
+        if (user) {
+          authBtn.innerHTML = `🔓 管理員已解鎖 (${user.email.split('@')[0]})`;
+          authBtn.className = "btn btn-action py-1 px-3 ms-2 text-success border-success";
+        } else {
+          authBtn.innerHTML = `🔒 訪客模式 (點擊解鎖)`;
+          authBtn.className = "btn btn-action py-1 px-3 ms-2 text-warning border-warning";
+        }
+      });
+
       dbRef = firebase.database().ref("fund_dashboard_data");
 
       const statusPill = document.getElementById('cloud-sync-status');
@@ -886,11 +1021,13 @@
           payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
           topupLogs = JSON.parse(JSON.stringify(DEFAULT_TOPUPS));
           
-          dbRef.set({
-            contracts: contracts,
-            payouts: payouts,
-            topupLogs: topupLogs
-          });
+          if (currentUser) {
+            dbRef.set({
+              contracts: contracts,
+              payouts: payouts,
+              topupLogs: topupLogs
+            });
+          }
           renderApp();
         } else {
           contracts = cloudData.contracts || [];
@@ -901,7 +1038,7 @@
         }
       }, (error) => {
         console.error("Firebase 連線受阻：", error);
-        alert("雲端讀取失敗，請確認 Firebase Rules 是否已設為 true！\n" + error.message);
+        alert("雲端讀取失敗：\n" + error.message);
       });
 
     } catch (err) {
@@ -911,17 +1048,23 @@
   }
 
   function saveData() {
+    if (!currentUser) {
+      alert("⚠️ 寫入被拒絕：訪客模式無法寫入雲端，請先解鎖管理員權限！");
+      return;
+    }
     if (dbRef) {
       dbRef.set({
         contracts: contracts,
         payouts: payouts,
         topupLogs: topupLogs
+      }).catch(err => {
+        alert("雲端寫入失敗：" + err.message);
       });
     }
   }
 
   // =========================================================================
-  // 核心畫面渲染 (主表格升級為 8 欄、即期金色框高亮、免橫向滾動)
+  // 核心畫面渲染
   // =========================================================================
   function renderApp() {
     const today = new Date();
@@ -1024,7 +1167,7 @@
       barElem.className = "progress-bar bg-warning";
     }
 
-    // 渲染主監控表 (8欄高密度排版)
+    // 渲染主監控表
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
@@ -1057,7 +1200,6 @@
       const isMatured = (currentYM > startYM) || hasPriorPayouts;
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && isMatured;
 
-      // 警示標籤陣列：消除冗餘的合約有效標籤，只亮起關鍵動作標籤
       let alerts = [];
       if (isDecommissioned) {
         alerts.push(`<span class="status-pill pill-merged"><span class="status-dot"></span>${c.status}</span>`);
@@ -1081,7 +1223,6 @@
         }
       }
 
-      // 倒數膠囊樣式
       let countdownPill = "";
       if (isDecommissioned) {
         countdownPill = `<span class="status-pill pill-neutral num-font">已除役</span>`;
@@ -1093,7 +1234,6 @@
         countdownPill = `<span class="status-pill pill-neutral num-font">${daysLeft} 天</span>`;
       }
 
-      // 視覺優先級：即期或期滿合約賦予整列金色高亮邊框與輕微底色
       const tr = document.createElement('tr');
       tr.style.transition = "all 0.2s ease";
 
@@ -1111,7 +1251,6 @@
       }
 
       tr.innerHTML = `
-        <!-- 1. 契約序號與期長合併 -->
         <td>
           <div class="d-flex align-items-center gap-2">
             <span class="num-font fw-bold fs-6" style="color: var(--accent-blue);">#${c.id}</span>
@@ -1119,18 +1258,15 @@
           </div>
         </td>
 
-        <!-- 2. 本金規模與利率整合 -->
         <td>
           <div class="num-font fw-bold fs-6">${c.amount} 萬</div>
           <div class="num-font" style="font-size: 0.75rem; color: var(--accent-rate);">${c.rate}% /月</div>
         </td>
 
-        <!-- 3. 預計月收益 -->
         <td>
           <span class="num-font fw-bold" style="color: var(--accent-emerald);">${c.status === '合約有效' ? monthlyGain.toLocaleString() + ' 元' : '-'}</span>
         </td>
 
-        <!-- 4. 累計領息與回收率整合 -->
         <td>
           <div class="num-font fw-bold" style="color: var(--accent-emerald);">${cumInterest.toLocaleString()} 元</div>
           <div class="d-flex align-items-center gap-1 mt-1">
@@ -1140,28 +1276,25 @@
           </div>
         </td>
 
-        <!-- 5. 走期與週三交割日整合 (兩行緊湊排版) -->
         <td>
           <div class="num-font" style="font-size: 0.85rem; color: var(--text-main);">${c.startDate} <span class="text-secondary">➔</span> ${endDate}</div>
           <div class="text-secondary small mt-1" style="font-size: 0.72rem;">交割：<span class="num-font text-white">${nextWed}</span> (週三)</div>
         </td>
 
-        <!-- 6. 期滿倒數 -->
         <td>${countdownPill}</td>
 
-        <!-- 7. 警示與提醒 (無雜訊) -->
         <td>
           <div class="d-flex flex-wrap gap-1 align-items-center">
             ${alerts.join('')}
           </div>
         </td>
 
-        <!-- 8. 管理操作 (右側對齊、保證不被截斷) -->
         <td class="text-end text-nowrap">
           ${c.status === '合約有效' ? `
-            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.4); font-size: 0.75rem; padding: 4px 10px;" onclick="openRenewModal('${c.uid || index}')">🔄 續約</button>
+            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.4); font-size: 0.75rem; padding: 3px 8px;" onclick="requireAuth(() => openRenewModal('${c.uid || index}'))">🔄 續約</button>
+            <button class="btn btn-sm btn-action me-1" style="color: var(--accent-rose); border-color: rgba(251, 113, 133, 0.4); font-size: 0.75rem; padding: 3px 8px;" onclick="requireAuth(() => openReturnCapitalModal('${c.uid || index}'))">💸 回金</button>
           ` : ''}
-          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 4px 8px; font-size: 0.75rem;" onclick="deleteContract(${index})">🗑️</button>
+          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 3px 7px; font-size: 0.75rem;" onclick="requireAuth(() => deleteContract(${index}))" title="僅限誤登撤回">🗑️</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -1183,17 +1316,18 @@
     topupLogs.slice().reverse().forEach((log, revIdx) => {
       const actualIdx = topupLogs.length - 1 - revIdx;
       const isNegative = Number(log.topupAmount) < 0;
+      const isZero = Number(log.topupAmount) === 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="num-font" style="color: var(--text-muted);">${log.date}</td>
         <td><span class="num-font fw-bold" style="color: var(--accent-blue);">#${log.contractId}</span></td>
-        <td class="num-font fw-bold" style="color: ${isNegative ? 'var(--accent-amber)' : 'var(--accent-emerald)'};">
-          ${isNegative ? log.topupAmount : '+' + log.topupAmount} 萬元 ${isNegative ? '(回金)' : (Number(log.topupAmount) === 0 ? '(原額續約)' : '(加碼)')}
+        <td class="num-font fw-bold" style="color: ${isNegative ? 'var(--accent-rose)' : (isZero ? 'var(--accent-blue)' : 'var(--accent-emerald)')};">
+          ${isNegative ? log.topupAmount : (isZero ? '0' : '+' + log.topupAmount)} 萬元 ${isNegative ? '(回金退場)' : (isZero ? '(原額續約)' : '(加碼注資)')}
         </td>
         <td class="num-font" style="color: var(--text-muted);">${log.oldAmount} 萬 ➔ <span class="text-white fw-semibold">${log.newAmount} 萬</span></td>
         <td class="small" style="color: var(--text-secondary);">${log.note || '-'}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 2px 6px; font-size: 0.75rem;" onclick="deleteTopupLog(${actualIdx})">刪除</button>
+          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 2px 6px; font-size: 0.75rem;" onclick="requireAuth(() => deleteTopupLog(${actualIdx}))">刪除</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -1234,37 +1368,25 @@
     return list;
   }
 
+  // =========================================================================
+  // 乾淨強韌的時間軸逆向滾動推算法 (無寫死字串，終身自動維護)
+  // =========================================================================
   function getActivePrincipalInMonth(ym) {
     const currentActivePrincipal = contracts
       .filter(c => c.status === "合約有效")
       .reduce((sum, c) => sum + Number(c.amount), 0);
 
-    let deduction = 0;
-
+    // 回推所有發生在 ym 之後的資本變化事件：
+    // 加碼注資 (正數) 予以扣除；回金退場 (負數) 予以加回 (扣除負數即加回)。
+    let futureCapitalDeltas = 0;
     topupLogs.forEach(log => {
-      let logDate = log.date;
-      if (log.id === "TOP-1" && logDate === "2026-06-29") {
-        logDate = "2026-07-01";
-      }
-      const logYM = (logDate || "").substring(0, 7);
-
+      const logYM = (log.date || "").substring(0, 7);
       if (logYM > ym) {
-        deduction += Number(log.topupAmount || 0);
+        futureCapitalDeltas += Number(log.topupAmount || 0);
       }
     });
 
-    const initialContractIds = new Set(["1", "2", "3", "4", "5", "6", "7"]);
-    contracts.forEach(c => {
-      const cYM = (c.startDate || "").substring(0, 7);
-      if (c.status === "合約有效" && cYM > ym && !initialContractIds.has(String(c.id))) {
-        const hasTopupLog = topupLogs.some(l => String(l.contractId) === String(c.id));
-        if (!hasTopupLog) {
-          deduction += Number(c.amount || 0);
-        }
-      }
-    });
-
-    return Math.max(0, currentActivePrincipal - deduction);
+    return Math.max(0, currentActivePrincipal - futureCapitalDeltas);
   }
 
   function renderCharts(activeContracts) {
@@ -1780,6 +1902,62 @@
     alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！舊約已封存歸檔，歷史領息完全承接。`);
   }
 
+  // ==========================================
+  // 到期完全回金 (結案退場) 模組
+  // ==========================================
+  function openReturnCapitalModal(target) {
+    let c = null;
+    if (typeof target === 'string') {
+      c = contracts.find(item => item.uid === target);
+    }
+    if (!c && typeof target === 'number') {
+      c = contracts[target];
+    }
+    if (!c) return;
+
+    const endDate = calculateEndDate(c.startDate, c.term);
+    const nextWed = calculateNextWednesday(endDate);
+
+    document.getElementById('ret-contract-uid').value = c.uid;
+    document.getElementById('ret-contract-id').value = c.id;
+    document.getElementById('ret-contract-amount').value = c.amount;
+
+    document.getElementById('ret-display-id').innerText = `契約 #${c.id}`;
+    document.getElementById('ret-display-detail').innerText = `原到期日：${endDate} (次週三 ${nextWed}) | 本金：${c.amount} 萬元`;
+    document.getElementById('ret-date').value = nextWed;
+    document.getElementById('ret-note').value = "";
+
+    modalReturnCapitalInstance.show();
+  }
+
+  function submitReturnCapital(e) {
+    e.preventDefault();
+    const uid = document.getElementById('ret-contract-uid').value;
+    const c = contracts.find(item => item.uid === uid);
+    if (!c) return;
+
+    const returnDate = document.getElementById('ret-date').value;
+    const userNote = document.getElementById('ret-note').value.trim();
+    const returnAmount = Number(c.amount);
+
+    c.status = "已全額回金";
+
+    topupLogs.push({
+      id: `TOP-${Date.now()}`,
+      date: returnDate,
+      contractId: String(c.id),
+      topupAmount: -returnAmount, // 負數代表資本抽回退場
+      oldAmount: returnAmount,
+      newAmount: 0,
+      note: userNote || `契約 #${c.id} 到期本金全額退款結案 (本金抽回 ${returnAmount} 萬)`
+    });
+
+    saveData();
+    modalReturnCapitalInstance.hide();
+    renderApp();
+    alert(`🎉 契約 #${c.id} 已正式全額回金除役結案！\n在約總本金已扣除 ${returnAmount} 萬，歷史流水帳與雪球歷程完整妥善保留。`);
+  }
+
   function openMergeModal() {
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const container = document.getElementById('merge-contract-list');
@@ -1939,7 +2117,7 @@
         <td class="num-font fw-bold" style="color: var(--accent-emerald);">+${Number(p.amount).toLocaleString()} 元</td>
         <td><span class="status-pill pill-neutral">實體現金</span></td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 2px 8px; font-size: 0.75rem;" onclick="deletePayoutRecord(${origIndex})">撤銷</button>
+          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 2px 8px; font-size: 0.75rem;" onclick="requireAuth(() => deletePayoutRecord(${origIndex}))">撤銷</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -1994,11 +2172,19 @@
   });
 
   function deleteContract(idx) {
-    if (confirm(`確認刪除此筆合約？(該合約在領息紀錄中的歷史數據仍會被妥善保留)`)) {
-      contracts.splice(idx, 1);
-      saveData();
-      renderApp();
+    const c = contracts[idx];
+    const hasPayouts = payouts.some(p => String(p.contractId) === String(c.id));
+    if (hasPayouts) {
+      if (!confirm(`⚠️ 警告：契約 #${c.id} 在流水帳中已有實際領息紀錄！\n若此合約是到期不玩，請使用「💸 回金」結案封存，勿使用物理刪除。\n\n確定仍要強制抹除這筆合約嗎？`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`確認撤回刪除此筆合約？(此操作僅限誤登撤回)`)) return;
     }
+
+    contracts.splice(idx, 1);
+    saveData();
+    renderApp();
   }
 
   function exportData() {
