@@ -93,6 +93,13 @@
       color: #FFFFFF;
       border-color: rgba(255, 255, 255, 0.3);
     }
+    .btn-action.active {
+      background: var(--accent-blue) !important;
+      color: #0B0F19 !important;
+      font-weight: 700;
+      border-color: var(--accent-blue) !important;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+    }
 
     .btn-blue-glow {
       background: linear-gradient(135deg, #0284C7, #0369A1);
@@ -304,13 +311,19 @@
     </div>
   </div>
 
-  <!-- 圖表展示區塊 -->
+  <!-- 圖表展示區塊 (升級：支援雙層堆疊資產雪球 / 單月配息切換) -->
   <div class="row g-4 mb-4">
     <div class="col-12 col-lg-8">
       <div class="dark-card h-100">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold mb-0">每月配息流水帳趨勢 (元)</h6>
-          <span class="text-secondary small">依月份聚合統計</span>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <div>
+            <h6 class="fw-bold mb-0" id="main-chart-title">🏔️ 總資產累積雪球 (萬元)</h6>
+            <span class="text-secondary small" id="main-chart-desc">在約本金規模 ＋ 歷史累計配息</span>
+          </div>
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-action active" id="btn-chart-snowball" onclick="switchChartMode('snowball')">🏔️ 資產雪球</button>
+            <button type="button" class="btn btn-action" id="btn-chart-bar" onclick="switchChartMode('bar')">📊 單月配息</button>
+          </div>
         </div>
         <div style="position: relative; height: 260px;">
           <canvas id="chart-payouts"></canvas>
@@ -768,6 +781,8 @@
   let dbRef = null;
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
+  let currentChartMode = 'snowball'; // 預設展示：'snowball' (總資產雪球) | 'bar' (單月配息)
+
   let modalBatchPayoutInstance = null;
   let modalMergeContractInstance = null;
   let modalPayoutHistoryInstance = null;
@@ -788,7 +803,7 @@
     return new Date(y, m - 1, d);
   }
 
-  // 校準後的次週三計算邏輯：若剛好是週三則當天生效，否則推至下一個週三
+  // 校準後的週三交割日算法
   function calculateNextWednesday(dateStr) {
     const d = parseLocalDate(dateStr);
     if (isNaN(d.getTime())) return "-";
@@ -825,7 +840,6 @@
     }
   }
 
-  // 精確合約領息比對輔助函式 (相容 uid 與舊資料)
   function isPayoutOfContract(p, c) {
     if (p.contractUid && c.uid) {
       return p.contractUid === c.uid;
@@ -851,7 +865,6 @@
       statusPill.innerHTML = `<span class="status-dot"></span>🟢 雲端同步連線中`;
       statusPill.className = "status-pill pill-active";
 
-      // 即時監聽 Firebase
       dbRef.on("value", (snapshot) => {
         const cloudData = snapshot.val();
         
@@ -909,10 +922,8 @@
     const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
     const totalInterest = payouts.reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
 
-    // 1. 計算理論常態月產能基準
     const monthlyBaseCashflow = activeContracts.reduce((sum, c) => sum + (c.amount * 10000 * (c.rate / 100)), 0);
 
-    // 2. 精算本月實質可領收益 (涵蓋有效合約 + 舊約期滿結算最後一期)
     let thisMonthEligibleTotal = 0;
     contracts.forEach(c => {
       if (c.status === "合約有效") {
@@ -931,12 +942,10 @@
       }
     });
 
-    // 3. 本月已入帳現金總額
     const thisMonthClaimedTotal = payouts
       .filter(p => p.date.startsWith(currentYM))
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
-    // 4. 動態變色 KPI 卡片
     const kpiCashflowElem = document.getElementById('kpi-cashflow');
     const kpiCashflowSubElem = document.getElementById('kpi-cashflow-sub');
 
@@ -974,7 +983,7 @@
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 5. 渲染主表格 (支援顯示/隱藏除役合約 + 本月最後一期提醒)
+    // 渲染主表格
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
@@ -994,12 +1003,10 @@
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
       const isFinalMonth = (c.status === "合約有效" && currentYM === endYM);
 
-      // 歷史累計領息：依序號 (contractId) 完整累計加總
       const cumInterest = payouts
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
-      // 待領息判定：依 uid 隔離檢查當月是否已領
       const hasCurrentMonthPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
       const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < currentYM);
@@ -1015,7 +1022,6 @@
         statusBadge = `<span class="status-pill pill-warning"><span class="status-dot"></span>🔔 續約洽談期</span>`;
       }
 
-      // 期滿最後一期提醒標籤
       if (isFinalMonth) {
         statusBadge += ` <span class="status-pill pill-alert ms-1"><span class="status-dot"></span>🏁 本月期滿最後一期</span>`;
       } else if (isOverdue) {
@@ -1094,50 +1100,218 @@
     }
   }
 
-  // 配息流水帳圖表：依「月份 (YYYY-MM)」聚合統計
+  // =========================================================================
+  // 圖表切換與渲染模組 (雙層堆疊資產雪球 vs 每月單月配息)
+  // =========================================================================
+  function switchChartMode(mode) {
+    currentChartMode = mode;
+    document.getElementById('btn-chart-snowball').classList.toggle('active', mode === 'snowball');
+    document.getElementById('btn-chart-bar').classList.toggle('active', mode === 'bar');
+
+    const activeContracts = contracts.filter(c => c.status === "合約有效");
+    renderCharts(activeContracts);
+  }
+
+  // 月份連續時間軸推算輔助函式
+  function getContinuousMonthRange(startYM, endYM) {
+    const list = [];
+    let [y, m] = startYM.split('-').map(Number);
+    const [targetY, targetM] = endYM.split('-').map(Number);
+
+    while (y < targetY || (y === targetY && m <= targetM)) {
+      list.push(`${y}-${String(m).padStart(2, '0')}`);
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+    }
+    return list;
+  }
+
+  // 取得某歷史月份底下的在約本金規模 (精確排除已除役或尚未生效合約)
+  function getActivePrincipalInMonth(ym) {
+    return contracts.reduce((sum, c) => {
+      const startYM = c.startDate.substring(0, 7);
+      if (startYM > ym) return sum; // 該月尚未起息
+
+      if (c.status === "合約有效") {
+        return sum + Number(c.amount);
+      } else {
+        const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
+        // 若該月在舊約到期月之前，仍屬於在約運作期
+        if (ym < endYM) {
+          return sum + Number(c.amount);
+        }
+        return sum;
+      }
+    }, 0);
+  }
+
   function renderCharts(activeContracts) {
-    const monthlyMap = {};
-    payouts.forEach(p => {
-      const ym = p.date.substring(0, 7);
-      monthlyMap[ym] = (monthlyMap[ym] || 0) + Number(p.amount);
-    });
-    const pLabels = Object.keys(monthlyMap).sort();
-    const pValues = pLabels.map(k => monthlyMap[k]);
+    const todayStr = formatLocalDate(new Date());
+    const currentYM = todayStr.substring(0, 7);
 
     if (chartPayoutsInstance) chartPayoutsInstance.destroy();
-    const ctxBar = document.getElementById('chart-payouts').getContext('2d');
-    chartPayoutsInstance = new Chart(ctxBar, {
-      type: 'bar',
-      data: {
-        labels: pLabels,
-        datasets: [{
-          label: '實領現金 (元)',
-          data: pValues,
-          backgroundColor: '#38BDF8',
-          borderRadius: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { 
-            backgroundColor: '#151C2C', 
-            borderColor: 'rgba(255,255,255,0.15)', 
-            borderWidth: 1,
-            callbacks: {
-              label: (ctx) => `本月總計配息：${ctx.parsed.y.toLocaleString()} 元`
+    const ctxMain = document.getElementById('chart-payouts').getContext('2d');
+
+    if (currentChartMode === 'snowball') {
+      // 模式 1：雙層堆疊面積圖 (總資產累積雪球)
+      document.getElementById('main-chart-title').innerText = "🏔️ 總資產累積雪球曲線 (萬元)";
+      document.getElementById('main-chart-desc').innerText = "底層在約本金 ＋ 頂層累計配息 (可見總累積資產斜率)";
+
+      // 計算月份範圍 (自首筆流水帳月份起，至當前月份)
+      const payoutMonths = payouts.map(p => p.date.substring(0, 7)).sort();
+      const startYM = payoutMonths.length > 0 ? payoutMonths[0] : (activeContracts[0] ? activeContracts[0].startDate.substring(0, 7) : currentYM);
+      const endYM = payoutMonths.length > 0 && payoutMonths[payoutMonths.length - 1] > currentYM ? payoutMonths[payoutMonths.length - 1] : currentYM;
+
+      const timelineMonths = getContinuousMonthRange(startYM, endYM);
+
+      const principalData = [];
+      const cumulativePayoutData = [];
+
+      timelineMonths.forEach(ym => {
+        // 1. 底層：該月份在約本金 (萬)
+        const pSum = getActivePrincipalInMonth(ym);
+        principalData.push(pSum);
+
+        // 2. 頂層：截至該月份累計已領現金盈餘 (萬)
+        const cumInterest = payouts
+          .filter(p => p.date.substring(0, 7) <= ym)
+          .reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
+        cumulativePayoutData.push(Number(cumInterest.toFixed(2)));
+      });
+
+      chartPayoutsInstance = new Chart(ctxMain, {
+        type: 'line',
+        data: {
+          labels: timelineMonths,
+          datasets: [
+            {
+              label: '在約本金規模 (萬)',
+              data: principalData,
+              borderColor: '#0284C7',
+              backgroundColor: 'rgba(2, 132, 199, 0.35)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.2,
+              pointRadius: 4,
+              pointBackgroundColor: '#151C2C',
+              pointBorderColor: '#0284C7',
+              pointBorderWidth: 2,
+              pointHoverRadius: 6,
+              stack: 'snowball'
+            },
+            {
+              label: '歷史累計已領配息 (萬)',
+              data: cumulativePayoutData,
+              borderColor: '#10B981',
+              backgroundColor: 'rgba(16, 185, 129, 0.45)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.2,
+              pointRadius: 4,
+              pointBackgroundColor: '#151C2C',
+              pointBorderColor: '#10B981',
+              pointBorderWidth: 2,
+              pointHoverRadius: 6,
+              stack: 'snowball'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'end',
+              labels: { color: '#CBD5E1', boxWidth: 12, font: { size: 11 } }
+            },
+            tooltip: {
+              backgroundColor: '#151C2C',
+              borderColor: 'rgba(255,255,255,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => ` ${ctx.dataset.label}：${Number(ctx.parsed.y).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} 萬`,
+                footer: (tooltipItems) => {
+                  let total = 0;
+                  tooltipItems.forEach(item => { total += item.parsed.y; });
+                  return ` 💰 總資產雪球規模：${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} 萬元`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: { color: '#CBD5E1' }
+            },
+            y: {
+              stacked: true,
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: {
+                color: '#CBD5E1',
+                callback: (val) => `${val} 萬`
+              }
             }
           }
-        },
-        scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#CBD5E1' } },
-          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#CBD5E1' } }
         }
-      }
-    });
+      });
 
+    } else {
+      // 模式 2：單月配息流水帳長條圖 (原長條圖)
+      document.getElementById('main-chart-title').innerText = "📊 每月配息流水帳趨勢 (元)";
+      document.getElementById('main-chart-desc').innerText = "依月份聚合統計 (實體現金單月入帳)";
+
+      const monthlyMap = {};
+      payouts.forEach(p => {
+        const ym = p.date.substring(0, 7);
+        monthlyMap[ym] = (monthlyMap[ym] || 0) + Number(p.amount);
+      });
+      const pLabels = Object.keys(monthlyMap).sort();
+      const pValues = pLabels.map(k => monthlyMap[k]);
+
+      chartPayoutsInstance = new Chart(ctxMain, {
+        type: 'bar',
+        data: {
+          labels: pLabels,
+          datasets: [{
+            label: '實領現金 (元)',
+            data: pValues,
+            backgroundColor: '#38BDF8',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { 
+              backgroundColor: '#151C2C', 
+              borderColor: 'rgba(255,255,255,0.15)', 
+              borderWidth: 1,
+              callbacks: {
+                label: (ctx) => `本月總計配息：${ctx.parsed.y.toLocaleString()} 元`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#CBD5E1' } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#CBD5E1' } }
+          }
+        }
+      });
+    }
+
+    // 右側：合約期長資金配置甜甜圈圖
     const termMap = {};
     activeContracts.forEach(c => {
       termMap[c.term] = (termMap[c.term] || 0) + Number(c.amount);
@@ -1179,7 +1353,6 @@
     renderBatchPayoutItems(selectedDate);
   }
 
-  // 批量領息列表渲染：結合精確 uid 防呆與到期月份提示
   function renderBatchPayoutItems(payoutDateStr) {
     const listContainer = document.getElementById('batch-payout-list');
     listContainer.innerHTML = "";
@@ -1451,7 +1624,6 @@
     }
 
     const newId = String(document.getElementById('r-new-id').value).trim();
-    // 檢查是否有「另一張正在進行中」的合約使用同一序號
     const isConflict = contracts.some((c) => c.uid !== oldUid && c.status === "合約有效" && String(c.id) === newId);
     if (isConflict) {
       alert(`合約序號 #${newId} 已存在於另一張進行中的合約，請使用不同序號！`);
@@ -1468,7 +1640,6 @@
     if (adjust > 0) oldStatus = "加碼換約";
     oldContract.status = oldStatus;
 
-    // 產生專屬全新 uid，保持流水帳防呆精確，同時 id 維持不變以繼續累積領息
     const newUid = `C_${newId}_${newStart.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
     contracts.push({
       uid: newUid,
