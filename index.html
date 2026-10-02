@@ -727,7 +727,7 @@
     measurementId: "G-TD240CP07T"
   };
 
-  // 預設 7 筆合約種子資料 (內建 uid)
+  // 預設 7 筆合約種子資料
   const DEFAULT_CONTRACTS = [
     { uid: "C_1_SEED", id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
     { uid: "C_2_SEED", id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
@@ -770,9 +770,9 @@
     { contractId: "7", contractUid: "C_7_SEED", date: "2026-09-19", amount: 16000 }
   ];
 
-  // 預設加碼紀錄種子資料
+  // 預設加碼紀錄種子資料 (合約 5 於 2026-07 生效加碼 20 萬)
   const DEFAULT_TOPUPS = [
-    { id: "TOP-1", date: "2026-06-29", contractId: "5", topupAmount: 20, oldAmount: 50, newAmount: 70, note: "加碼20萬，利率調為1.8%" }
+    { id: "TOP-1", date: "2026-07-01", contractId: "5", topupAmount: 20, oldAmount: 50, newAmount: 70, note: "加碼20萬，利率調為1.8% (2026-07 生效)" }
   ];
 
   let contracts = [];
@@ -790,7 +790,6 @@
   let modalConfirmPayoutInstance = null;
   let pendingPayoutRecords = [];
 
-  // 本地日期格式化輔助函式 (防止時區倒退)
   function formatLocalDate(date = new Date()) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -803,7 +802,7 @@
     return new Date(y, m - 1, d);
   }
 
-  // 校準後的週三交割日算法 (若剛好是週三則當天生效)
+  // 校準週三交割日：若到期剛好為週三則當天生效，否則推至下一個週三
   function calculateNextWednesday(dateStr) {
     const d = parseLocalDate(dateStr);
     if (isNaN(d.getTime())) return "-";
@@ -813,7 +812,6 @@
     return formatLocalDate(d);
   }
 
-  // 合約到期日推算 (含月末溢位校正)
   function calculateEndDate(startDateStr, term) {
     const d = parseLocalDate(startDateStr);
     const months = (term === "半年") ? 6 : 12;
@@ -826,7 +824,7 @@
     return formatLocalDate(d);
   }
 
-  // 資料結構完整性校驗：補齊 uid
+  // 資料結構防呆與自動修正
   function ensureDataIntegrity() {
     let modified = false;
     contracts.forEach(c => {
@@ -835,6 +833,15 @@
         modified = true;
       }
     });
+
+    // 自動校正歷史 TOP-1 舊日期，確保逆向回推 6 月為 570 萬、7 月為 590 萬
+    topupLogs.forEach(log => {
+      if (log.id === "TOP-1" && log.date === "2026-06-29") {
+        log.date = "2026-07-01";
+        modified = true;
+      }
+    });
+
     if (modified) {
       saveData();
     }
@@ -847,7 +854,6 @@
     return String(p.contractId) === String(c.id);
   }
 
-  // 純雲端初始化引擎
   function initData() {
     modalBatchPayoutInstance = new bootstrap.Modal(document.getElementById('modalBatchPayout'));
     modalMergeContractInstance = new bootstrap.Modal(document.getElementById('modalMergeContract'));
@@ -983,7 +989,7 @@
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 渲染主表格
+    // 渲染主監控表
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
@@ -1097,12 +1103,10 @@
       topupLogs.splice(idx, 1);
       saveData();
       renderTopupLogsTable();
+      renderApp();
     }
   }
 
-  // =========================================================================
-  // 圖表切換與渲染模組 (雙層堆疊資產雪球 vs 每月單月配息)
-  // =========================================================================
   function switchChartMode(mode) {
     currentChartMode = mode;
     document.getElementById('btn-chart-snowball').classList.toggle('active', mode === 'snowball');
@@ -1128,48 +1132,44 @@
     return list;
   }
 
-  // 取得某歷史月份底下的在約本金規模 (結合 startDate 與實際領息記錄逆向校驗)
+  // =========================================================================
+  // 會計逆向推算法：由當前本金規模與資本異動日誌精確回推各歷史月份本金
+  // =========================================================================
   function getActivePrincipalInMonth(ym) {
-    const payoutContractIds = new Set(
-      payouts.filter(p => p.date.substring(0, 7) === ym).map(p => String(p.contractId))
-    );
+    // 1. 基期：以當前有效合約之總在約本金為基準 (590 萬)
+    const currentActivePrincipal = contracts
+      .filter(c => c.status === "合約有效")
+      .reduce((sum, c) => sum + Number(c.amount), 0);
 
-    const processedIds = new Set();
+    // 2. 逆向推算：凡是在 ym 之後才生效的注資加碼，該月尚未發生，予以扣除；
+    //    凡是在 ym 之後才生效的部分回金，該月資金仍在運作中，予以加回 (扣除負數即加回)。
+    let deduction = 0;
 
-    return contracts.reduce((sum, c) => {
-      const idStr = String(c.id);
-      if (processedIds.has(idStr)) return sum;
-
-      const startYM = (c.startDate || '').substring(0, 7);
-      const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
-      const hasPayoutInMonth = payoutContractIds.has(idStr);
-
-      let isActive = false;
-
-      if (hasPayoutInMonth) {
-        // 該月有實際領息記錄，證明本金必然在線運作
-        isActive = true;
-      } else if (c.status === "合約有效") {
-        isActive = (startYM <= ym);
-      } else {
-        isActive = (startYM <= ym && ym < endYM);
+    topupLogs.forEach(log => {
+      let logDate = log.date;
+      if (log.id === "TOP-1" && logDate === "2026-06-29") {
+        logDate = "2026-07-01";
       }
+      const logYM = (logDate || "").substring(0, 7);
 
-      if (isActive) {
-        processedIds.add(idStr);
+      if (logYM > ym) {
+        deduction += Number(log.topupAmount || 0);
+      }
+    });
 
-        // 若該月在加碼/換約前，自動還原為舊本金 (例如合約 5 加碼前為 50 萬)
-        let actualAmount = Number(c.amount);
-        const topup = topupLogs.find(l => String(l.contractId) === idStr && (l.date.substring(0, 7) > ym || startYM > ym));
-        if (topup && topup.oldAmount !== undefined) {
-          actualAmount = Number(topup.oldAmount);
+    // 3. 防呆校驗：若未來新增非 1~7 號的全新獨立合約且起息在 ym 之後，該月份尚未注資，予以扣除
+    const initialContractIds = new Set(["1", "2", "3", "4", "5", "6", "7"]);
+    contracts.forEach(c => {
+      const cYM = (c.startDate || "").substring(0, 7);
+      if (c.status === "合約有效" && cYM > ym && !initialContractIds.has(String(c.id))) {
+        const hasTopupLog = topupLogs.some(l => String(l.contractId) === String(c.id));
+        if (!hasTopupLog) {
+          deduction += Number(c.amount || 0);
         }
-
-        return sum + actualAmount;
       }
+    });
 
-      return sum;
-    }, 0);
+    return Math.max(0, currentActivePrincipal - deduction);
   }
 
   function renderCharts(activeContracts) {
@@ -1183,9 +1183,10 @@
       document.getElementById('main-chart-title').innerText = "🏔️ 總資產累積雪球曲線 (萬元)";
       document.getElementById('main-chart-desc').innerText = "底層在約本金 ＋ 頂層累計配息 (可見總累積資產斜率)";
 
+      // 時間軸固定自 2026-06 記錄起點至當前月份
       const payoutMonths = payouts.map(p => p.date.substring(0, 7)).sort();
-      const startYM = payoutMonths.length > 0 ? payoutMonths[0] : (activeContracts[0] ? activeContracts[0].startDate.substring(0, 7) : currentYM);
-      const endYM = payoutMonths.length > 0 && payoutMonths[payoutMonths.length - 1] > currentYM ? payoutMonths[payoutMonths.length - 1] : currentYM;
+      const startYM = (payoutMonths.length > 0 && payoutMonths[0] < "2026-06") ? payoutMonths[0] : "2026-06";
+      const endYM = (payoutMonths.length > 0 && payoutMonths[payoutMonths.length - 1] > currentYM) ? payoutMonths[payoutMonths.length - 1] : currentYM;
 
       const timelineMonths = getContinuousMonthRange(startYM, endYM);
 
@@ -1193,9 +1194,11 @@
       const cumulativePayoutData = [];
 
       timelineMonths.forEach(ym => {
+        // 1. 底層本金：6月精確回推為 570 萬，7月起為 590 萬
         const pSum = getActivePrincipalInMonth(ym);
         principalData.push(pSum);
 
+        // 2. 頂層累計配息：截至該月份為止累計落袋之利息現金 (萬元)
         const cumInterest = payouts
           .filter(p => p.date.substring(0, 7) <= ym)
           .reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
@@ -1211,10 +1214,10 @@
               label: '在約本金規模 (萬)',
               data: principalData,
               borderColor: '#0284C7',
-              backgroundColor: 'rgba(2, 132, 199, 0.35)',
+              backgroundColor: 'rgba(2, 132, 199, 0.4)',
               borderWidth: 2,
               fill: true,
-              tension: 0.2,
+              tension: 0.15,
               pointRadius: 4,
               pointBackgroundColor: '#151C2C',
               pointBorderColor: '#0284C7',
@@ -1229,7 +1232,7 @@
               backgroundColor: 'rgba(16, 185, 129, 0.45)',
               borderWidth: 2,
               fill: true,
-              tension: 0.2,
+              tension: 0.15,
               pointRadius: 4,
               pointBackgroundColor: '#151C2C',
               pointBorderColor: '#10B981',
@@ -1869,16 +1872,28 @@
     }
 
     const startDate = document.getElementById('c-start').value;
+    const amount = Number(document.getElementById('c-amount').value);
     const newUid = `C_${newId}_${startDate.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
 
     contracts.push({
       uid: newUid,
       id: newId,
       term: document.getElementById('c-term').value,
-      amount: Number(document.getElementById('c-amount').value),
+      amount: amount,
       rate: Number(document.getElementById('c-rate').value),
       startDate: startDate,
       status: "合約有效"
+    });
+
+    // 自動同步寫入資本日誌，確保未來雪球回推精準
+    topupLogs.push({
+      id: `TOP-${Date.now()}`,
+      date: startDate,
+      contractId: newId,
+      topupAmount: amount,
+      oldAmount: 0,
+      newAmount: amount,
+      note: `新簽契約 #${newId} (注資 ${amount} 萬)`
     });
 
     saveData();
