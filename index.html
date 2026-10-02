@@ -258,6 +258,57 @@
     }
     .selection-card:hover { border-color: rgba(255, 255, 255, 0.3); background: #1E293B; }
     .selection-card.disabled-card { opacity: 0.45; cursor: not-allowed; background: #0B0F19; }
+
+    /* =========================================================================
+       手機與窄螢幕專屬響應式規則 (選項 A：凍結首欄滑動 + 2x2 卡片 + 2欄按鈕)
+       ========================================================================= */
+    @media (max-width: 768px) {
+      .container-fluid { padding-left: 12px !important; padding-right: 12px !important; }
+      
+      /* 頂部按鈕改為俐落的 2 欄網格 */
+      .action-btn-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        width: 100%;
+        margin-top: 8px;
+      }
+      .action-btn-group .btn {
+        padding: 8px 6px;
+        font-size: 0.8rem;
+        text-align: center;
+      }
+
+      /* 四大 KPI 卡片在手機端為 2x2 矩陣 */
+      .dark-card { padding: 14px 14px; }
+      .kpi-title { font-size: 0.68rem; }
+      .kpi-value { font-size: 1.55rem; margin-top: 2px; margin-bottom: 4px; }
+      .kpi-bottom-box { padding-top: 6px; margin-top: 6px; }
+
+      /* 表格手機端：首欄序號 Sticky 凍結 */
+      .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .table-dark-fintech th:first-child,
+      .table-dark-fintech td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background-color: #151C2C !important;
+        box-shadow: 3px 0 8px rgba(0, 0, 0, 0.5);
+      }
+      .table-dark-fintech th:first-child {
+        z-index: 3;
+        background-color: #0E1422 !important;
+      }
+      .table-dark-fintech tbody tr.is-expiring td:first-child {
+        background-color: #231C1A !important;
+      }
+      .table-dark-fintech tbody tr.is-expired td:first-child {
+        background-color: #27171C !important;
+      }
+    }
   </style>
 </head>
 <body class="py-4">
@@ -270,14 +321,14 @@
         <h3 class="fw-bold mb-0" style="letter-spacing: -0.03em;">💼 私募基金投資終端</h3>
         <span class="status-pill pill-active" id="cloud-sync-status"><span class="status-dot"></span>雲端連線中...</span>
         <!-- 管理員鎖定狀態標籤 -->
-        <button class="btn btn-action py-1 px-3 ms-2" id="btn-auth-status" style="font-size: 0.78rem;" onclick="handleAuthButtonClick()">
+        <button class="btn btn-action py-1 px-3 ms-1" id="btn-auth-status" style="font-size: 0.78rem;" onclick="handleAuthButtonClick()">
           🔒 訪客模式 (點擊解鎖)
         </button>
       </div>
       <p class="text-secondary small mb-0 mt-1" id="update-date">系統基期加載中...</p>
     </div>
     
-    <div class="d-flex flex-wrap gap-2">
+    <div class="d-flex flex-wrap gap-2 action-btn-group">
       <button class="btn btn-action btn-blue-glow" onclick="requireAuth(() => new bootstrap.Modal(document.getElementById('modalAddContract')).show())">＋ 新增契約</button>
       <button class="btn btn-action btn-purple-glow" onclick="requireAuth(openMergeModal)">🔀 合約合併與加碼</button>
       <button class="btn btn-action btn-emerald-glow" onclick="requireAuth(openBatchPayoutModal)">💰 登記現金領息</button>
@@ -288,22 +339,22 @@
     </div>
   </div>
 
-  <!-- 四大核心 KPI 卡片 (規格化三層架構：高度齊平、微型進度條全面對齊) -->
+  <!-- 四大核心 KPI 卡片 (手機端 2x2 矩陣 / 電腦端 1x4 橫排) -->
   <div class="row g-3 mb-4">
     <!-- 卡片 1：總有效在約本金規模 -->
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-6 col-xl-3">
       <div class="dark-card h-100 d-flex flex-column justify-content-between">
         <div>
           <div class="d-flex justify-content-between align-items-center">
-            <div class="kpi-title">總有效在約本金規模</div>
-            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">Active Pool</span>
+            <div class="kpi-title">總有效在約本金</div>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">在約資金池</span>
           </div>
           <div class="kpi-value num-font" style="color: var(--accent-blue);" id="kpi-principal">0 萬</div>
         </div>
 
         <div class="kpi-bottom-box">
           <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
-            <span class="text-secondary">加權月利率 <span class="num-font fw-bold text-white" id="kpi-weighted-rate">0.00%</span></span>
+            <span class="text-secondary">加權月息 <span class="num-font fw-bold text-white" id="kpi-weighted-rate">0.00%</span></span>
             <span class="text-secondary">年化 <span class="num-font text-white" id="kpi-annual-rate">0.0%</span></span>
           </div>
           <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
@@ -312,19 +363,19 @@
           </div>
           <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
             <span>最大部位：<span class="num-font text-white" id="kpi-max-position">-</span></span>
-            <span class="text-muted">半年 <span id="kpi-term-split" class="num-font text-white">- / -</span> 一年</span>
+            <span class="text-muted"><span id="kpi-term-split" class="num-font text-white">- / -</span></span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 卡片 2：本月收益與領取進度 -->
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-6 col-xl-3">
       <div class="dark-card h-100 d-flex flex-column justify-content-between">
         <div>
           <div class="d-flex justify-content-between align-items-center">
-            <div class="kpi-title">本月收益與領取進度</div>
-            <span class="status-pill pill-neutral" style="font-size: 0.65rem;" id="kpi-month-tag">當期運轉</span>
+            <div class="kpi-title">本月收益與進度</div>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;" id="kpi-month-tag">本月現金流</span>
           </div>
           <div class="kpi-value num-font" id="kpi-cashflow">0 元</div>
         </div>
@@ -338,34 +389,34 @@
             <div class="progress-bar" id="kpi-cashflow-bar" role="progressbar" style="width: 0%; border-radius: 9999px; transition: width 0.4s ease;"></div>
           </div>
           <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
-            <span>入帳進度：<span class="num-font text-white" id="kpi-claimed-contracts-count">0 / 0 筆契約</span></span>
+            <span>已入帳：<span class="num-font text-white" id="kpi-claimed-contracts-count">0 / 0 筆</span></span>
             <span class="num-font text-white" id="kpi-claimed-percent">0%</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 卡片 3：歷史累計已領盈餘 (回收率標準尺標) -->
-    <div class="col-12 col-sm-6 col-xl-3">
+    <!-- 卡片 3：歷史累計已領盈餘 -->
+    <div class="col-6 col-xl-3">
       <div class="dark-card clickable-card h-100 d-flex flex-column justify-content-between" onclick="openPayoutHistoryModal()" title="點擊展開歷史領息細項清單">
         <div>
           <div class="d-flex justify-content-between align-items-center">
             <div class="kpi-title">歷史累計已領盈餘</div>
-            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">展開細項 🔍</span>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">查看明細 🔍</span>
           </div>
           <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
         </div>
 
         <div class="kpi-bottom-box">
           <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
-            <span class="text-secondary">本金回收率 <span class="num-font fw-bold" style="color: var(--accent-emerald);" id="kpi-payback-rate">0.0%</span></span>
+            <span class="text-secondary">回收率 <span class="num-font fw-bold" style="color: var(--accent-emerald);" id="kpi-payback-rate">0.0%</span></span>
             <span class="text-secondary" id="kpi-payback-months">推算中...</span>
           </div>
           <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
             <div class="progress-bar bg-warning" id="kpi-payback-bar" role="progressbar" style="width: 0%; border-radius: 9999px; transition: width 0.4s ease;"></div>
           </div>
           <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
-            <span>淨風險敞口：<span class="num-font text-white" id="kpi-net-risk">0 萬</span></span>
+            <span>淨風險：<span class="num-font text-white" id="kpi-net-risk">0 萬</span></span>
             <span class="text-muted">目標 100% 零本金</span>
           </div>
         </div>
@@ -373,19 +424,19 @@
     </div>
 
     <!-- 卡片 4：生效中契約序號數 -->
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-6 col-xl-3">
       <div class="dark-card h-100 d-flex flex-column justify-content-between">
         <div>
           <div class="d-flex justify-content-between align-items-center">
             <div class="kpi-title">生效中契約序號數</div>
-            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">Portfolio</span>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">合約組合</span>
           </div>
           <div class="kpi-value num-font" style="color: var(--accent-purple);" id="kpi-count">0 筆</div>
         </div>
 
         <div class="kpi-bottom-box">
           <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
-            <span class="text-secondary">正常生息 <span class="num-font text-white" id="kpi-contracts-healthy">0</span> 筆</span>
+            <span class="text-secondary">正常 <span class="num-font text-white" id="kpi-contracts-healthy">0</span> 筆</span>
             <span class="text-secondary">待洽談 <span class="num-font text-warning" id="kpi-contracts-alert">0</span> 筆</span>
           </div>
           <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
@@ -393,8 +444,8 @@
             <div class="progress-bar" id="kpi-count-bar-1y" style="background-color: var(--accent-purple); width: 50%;" title="一年期合約筆數"></div>
           </div>
           <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
-            <span>即期警戒：<span class="num-font text-white" id="kpi-nearest-expiry">-</span></span>
-            <span class="text-muted">半年 <span id="kpi-count-split" class="num-font text-white">- / -</span> 一年</span>
+            <span>即期：<span class="num-font text-white" id="kpi-nearest-expiry">-</span></span>
+            <span class="text-muted"><span id="kpi-count-split" class="num-font text-white">- / -</span></span>
           </div>
         </div>
       </div>
@@ -433,7 +484,7 @@
     </div>
   </div>
 
-  <!-- 契約即時排程監控主表 -->
+  <!-- 契約即時排程監控主表 (已更名為「合約走期與下期生效」，手機端首欄 Sticky 凍結) -->
   <div class="dark-card mb-4 p-0" style="overflow: hidden;">
     <div class="p-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
@@ -455,7 +506,7 @@
             <th style="min-width: 95px;">本金規模</th>
             <th style="min-width: 105px;">預計月收益</th>
             <th style="min-width: 135px; color: var(--accent-emerald);">累計領息 / 回收</th>
-            <th style="min-width: 195px;">合約走期與交割</th>
+            <th style="min-width: 195px;">合約走期與下期生效</th>
             <th style="min-width: 95px;">期滿倒數</th>
             <th style="min-width: 140px;">警示與提醒</th>
             <th class="text-end" style="min-width: 140px;">管理操作</th>
@@ -558,7 +609,7 @@
   </div>
 </div>
 
-<!-- Modal: 一鍵快速續約 / 部分回金 / 加碼換約對話框 -->
+<!-- Modal: 續約 / 部分回金換約對話框 -->
 <div class="modal fade" id="modalRenewContract" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -619,7 +670,7 @@
               <input type="number" id="r-new-rate" class="form-control" required min="0.1" step="0.1" placeholder="如：1.2">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label small">交割生效日 (自動校準週三)</label>
+              <label class="form-label small">換約生效日 (自動校準週三)</label>
               <input type="date" id="r-new-start" class="form-control" required onclick="this.showPicker()">
             </div>
             <div class="col-12">
@@ -653,14 +704,14 @@
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <span class="fw-bold fs-5" style="color: var(--accent-blue);" id="ret-display-id">契約 #</span>
-                <div class="text-secondary small mt-1" id="ret-display-detail">到期日： | 回金總額： 萬元</div>
+                <div class="text-secondary small mt-1" id="ret-display-detail">原到期日： | 本金： 萬元</div>
               </div>
               <span class="status-pill pill-alert">本金全額抽回</span>
             </div>
           </div>
 
           <div class="mb-3">
-            <label class="form-label small">本金交割退款日期 (生效月份起不再計息)</label>
+            <label class="form-label small">本金退款生效日 (生效月份起不再計息)</label>
             <input type="date" id="ret-date" class="form-control" required onclick="this.showPicker()">
           </div>
           <div class="mb-3">
@@ -1066,10 +1117,10 @@
         const authBtn = document.getElementById('btn-auth-status');
         if (user) {
           authBtn.innerHTML = `🔓 管理員已解鎖 (${user.email.split('@')[0]})`;
-          authBtn.className = "btn btn-action py-1 px-3 ms-2 text-success border-success";
+          authBtn.className = "btn btn-action py-1 px-3 ms-1 text-success border-success";
         } else {
           authBtn.innerHTML = `🔒 訪客模式 (點擊解鎖)`;
-          authBtn.className = "btn btn-action py-1 px-3 ms-2 text-warning border-warning";
+          authBtn.className = "btn btn-action py-1 px-3 ms-1 text-warning border-warning";
         }
       });
 
@@ -1130,7 +1181,7 @@
   }
 
   // =========================================================================
-  // 核心畫面渲染 (包含四張 KPI 卡片高規格等高計算)
+  // 核心畫面渲染
   // =========================================================================
   function renderApp() {
     const today = new Date();
@@ -1214,23 +1265,23 @@
     }
 
     cashflowBar.style.width = `${cashflowPct}%`;
-    claimedCountElem.innerText = `${claimedContractIds.size} / ${eligibleContractIds.size} 筆契約`;
+    claimedCountElem.innerText = `${claimedContractIds.size} / ${eligibleContractIds.size} 筆`;
     claimedPercentElem.innerText = `${cashflowPct}%`;
 
     if (thisMonthClaimedTotal === 0) {
       kpiCashflowElem.style.color = "var(--accent-amber)";
       kpiCashflowElem.innerText = `${thisMonthEligibleTotal.toLocaleString()} 元`;
-      cashflowStatusText.innerHTML = `<span class="text-warning fw-semibold">⚠️ 待全數領取</span>`;
+      cashflowStatusText.innerHTML = `<span class="text-warning fw-semibold">⚠️ 待領取</span>`;
       cashflowBar.className = "progress-bar bg-warning";
     } else if (thisMonthClaimedTotal >= thisMonthEligibleTotal && thisMonthEligibleTotal > 0) {
       kpiCashflowElem.style.color = "var(--accent-emerald)";
       kpiCashflowElem.innerText = `${thisMonthClaimedTotal.toLocaleString()} 元`;
-      cashflowStatusText.innerHTML = `<span class="text-success fw-semibold">✅ 本月已全領</span>`;
+      cashflowStatusText.innerHTML = `<span class="text-success fw-semibold">✅ 全領</span>`;
       cashflowBar.className = "progress-bar bg-success";
     } else {
       kpiCashflowElem.style.color = "var(--accent-blue)";
       kpiCashflowElem.innerText = `${thisMonthClaimedTotal.toLocaleString()} / ${thisMonthEligibleTotal.toLocaleString()} 元`;
-      cashflowStatusText.innerHTML = `<span class="text-info fw-semibold">部分已入帳</span>`;
+      cashflowStatusText.innerHTML = `<span class="text-info fw-semibold">部分入帳</span>`;
       cashflowBar.className = "progress-bar bg-info";
     }
 
@@ -1244,10 +1295,10 @@
 
     let paybackMonthsText = "-";
     if (netRiskDollars <= 0) {
-      paybackMonthsText = "🎉 已全額回本 (零本金)";
+      paybackMonthsText = "🎉 已零本金";
     } else if (monthlyBaseCashflow > 0) {
       const monthsLeft = Math.ceil(netRiskDollars / monthlyBaseCashflow);
-      paybackMonthsText = `約 ${monthsLeft} 個月全額回本`;
+      paybackMonthsText = `約 ${monthsLeft} 個月回本`;
     }
 
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
@@ -1308,7 +1359,7 @@
     }
 
     // ==========================================
-    // 渲染主監控表 (8欄精簡版)
+    // 渲染主監控表 (8欄精簡版，支援手機首欄鎖定)
     // ==========================================
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
@@ -1383,9 +1434,11 @@
         tr.style.opacity = "0.55";
         tr.style.borderLeft = "4px solid transparent";
       } else if (isExpired) {
+        tr.className = "is-expired";
         tr.style.background = "rgba(251, 113, 133, 0.08)";
         tr.style.borderLeft = "4px solid var(--accent-rose)";
       } else if (isNegotiationPeriod || isFinalMonth) {
+        tr.className = "is-expiring";
         tr.style.background = "rgba(245, 158, 11, 0.08)";
         tr.style.borderLeft = "4px solid var(--accent-amber)";
       } else {
@@ -1420,7 +1473,7 @@
 
         <td>
           <div class="num-font" style="font-size: 0.85rem; color: var(--text-main);">${c.startDate} <span class="text-secondary">➔</span> ${endDate}</div>
-          <div class="text-secondary small mt-1" style="font-size: 0.72rem;">交割：<span class="num-font text-white">${nextWed}</span> (週三)</div>
+          <div class="text-secondary small mt-1" style="font-size: 0.72rem;">週三生效：<span class="num-font text-white">${nextWed}</span></div>
         </td>
 
         <td>${countdownPill}</td>
