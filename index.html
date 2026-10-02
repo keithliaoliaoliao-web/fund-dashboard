@@ -276,7 +276,7 @@
     </div>
   </div>
 
-  <!-- 四大核心 KPI 卡片 -->
+  <!-- 四大核心 KPI 卡片 (第三張內建資本回收覆蓋進度條) -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
       <div class="dark-card">
@@ -299,7 +299,21 @@
           <span class="status-pill pill-neutral" style="font-size: 0.65rem;">展開細項 🔍</span>
         </div>
         <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
-        <div class="text-secondary small mt-2">Cumulative Payouts (點擊查看)</div>
+        
+        <!-- 方案 3：本金回收覆蓋率與淨風險敞口進度條 -->
+        <div class="mt-2 pt-1 border-top" style="border-color: rgba(255,255,255,0.08) !important;">
+          <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+            <span class="text-secondary">本金回收率 <span class="num-font fw-bold" style="color: var(--accent-emerald);" id="kpi-payback-rate">0.0%</span></span>
+            <span class="text-secondary" id="kpi-payback-months">推算中...</span>
+          </div>
+          <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
+            <div class="progress-bar bg-warning" id="kpi-payback-bar" role="progressbar" style="width: 0%; border-radius: 9999px; transition: width 0.4s ease;"></div>
+          </div>
+          <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
+            <span>淨風險敞口：<span class="num-font text-white" id="kpi-net-risk">0 萬</span></span>
+            <span class="text-muted">目標 100% 零本金</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
@@ -311,7 +325,7 @@
     </div>
   </div>
 
-  <!-- 圖表展示區塊 (雙層堆疊資產雪球 / 單月配息切換) -->
+  <!-- 圖表展示區塊 -->
   <div class="row g-4 mb-4">
     <div class="col-12 col-lg-8">
       <div class="dark-card h-100">
@@ -366,7 +380,7 @@
             <th>本金 (萬)</th>
             <th>月利率 %</th>
             <th>預計月收益 (元)</th>
-            <th style="color: var(--accent-emerald);">累計領息 (元)</th>
+            <th style="color: var(--accent-emerald);">累計領息 (元) / 回收率</th>
             <th>起息日</th>
             <th>到期日</th>
             <th>交割日 (週三生效)</th>
@@ -770,7 +784,7 @@
     { contractId: "7", contractUid: "C_7_SEED", date: "2026-09-19", amount: 16000 }
   ];
 
-  // 預設加碼紀錄種子資料 (合約 5 於 2026-07 生效加碼 20 萬)
+  // 預設加碼紀錄種子資料
   const DEFAULT_TOPUPS = [
     { id: "TOP-1", date: "2026-07-01", contractId: "5", topupAmount: 20, oldAmount: 50, newAmount: 70, note: "加碼20萬，利率調為1.8% (2026-07 生效)" }
   ];
@@ -781,7 +795,7 @@
   let dbRef = null;
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
-  let currentChartMode = 'snowball'; // 'snowball' (總資產雪球) | 'bar' (單月配息)
+  let currentChartMode = 'snowball';
 
   let modalBatchPayoutInstance = null;
   let modalMergeContractInstance = null;
@@ -802,11 +816,10 @@
     return new Date(y, m - 1, d);
   }
 
-  // 校準週三交割日：若到期剛好為週三則當天生效，否則推至下一個週三
   function calculateNextWednesday(dateStr) {
     const d = parseLocalDate(dateStr);
     if (isNaN(d.getTime())) return "-";
-    const day = d.getDay(); // 0(日), 1(一), 2(二), 3(三), 4(四), 5(五), 6(六)
+    const day = d.getDay();
     const delta = (3 - day + 7) % 7;
     d.setDate(d.getDate() + delta);
     return formatLocalDate(d);
@@ -824,7 +837,6 @@
     return formatLocalDate(d);
   }
 
-  // 資料結構防呆與自動修正
   function ensureDataIntegrity() {
     let modified = false;
     contracts.forEach(c => {
@@ -834,7 +846,6 @@
       }
     });
 
-    // 自動校正歷史 TOP-1 舊日期，確保逆向回推 6 月為 570 萬、7 月為 590 萬
     topupLogs.forEach(log => {
       if (log.id === "TOP-1" && log.date === "2026-06-29") {
         log.date = "2026-07-01";
@@ -926,7 +937,8 @@
 
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
-    const totalInterest = payouts.reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
+    const totalInterestDollars = payouts.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalInterest = totalInterestDollars / 10000;
 
     const monthlyBaseCashflow = activeContracts.reduce((sum, c) => sum + (c.amount * 10000 * (c.rate / 100)), 0);
 
@@ -985,11 +997,39 @@
       `;
     }
 
+    // 方案 3 計算：本金回收覆蓋率、淨風險敞口與回本時程
+    const totalPrincipalDollars = totalPrincipal * 10000;
+    const paybackRate = totalPrincipalDollars > 0 ? ((totalInterestDollars / totalPrincipalDollars) * 100) : 0;
+    const netRiskDollars = Math.max(0, totalPrincipalDollars - totalInterestDollars);
+    const netRisk = (netRiskDollars / 10000).toFixed(2);
+
+    let paybackMonthsText = "-";
+    if (netRiskDollars <= 0) {
+      paybackMonthsText = "🎉 已全額回本 (零本金)";
+    } else if (monthlyBaseCashflow > 0) {
+      const monthsLeft = Math.ceil(netRiskDollars / monthlyBaseCashflow);
+      paybackMonthsText = `約 ${monthsLeft} 個月全額回本`;
+    }
+
     document.getElementById('kpi-principal').innerText = `${totalPrincipal.toLocaleString()} 萬`;
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
     document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
 
-    // 渲染主監控表
+    // 渲染卡片 3 的進度條
+    document.getElementById('kpi-payback-rate').innerText = `${paybackRate.toFixed(2)}%`;
+    document.getElementById('kpi-payback-months').innerText = paybackMonthsText;
+    document.getElementById('kpi-net-risk').innerText = `${netRisk} 萬`;
+    const barElem = document.getElementById('kpi-payback-bar');
+    barElem.style.width = `${Math.min(100, paybackRate)}%`;
+    if (paybackRate >= 100) {
+      barElem.className = "progress-bar bg-success";
+    } else if (paybackRate >= 50) {
+      barElem.className = "progress-bar bg-info";
+    } else {
+      barElem.className = "progress-bar bg-warning";
+    }
+
+    // 渲染主監控表 (累計領息欄位整合個別回收率)
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
@@ -1012,6 +1052,10 @@
       const cumInterest = payouts
         .filter(p => String(p.contractId) === String(c.id))
         .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      // 個別合約回收率計算
+      const contractPrincipalDollars = Number(c.amount) * 10000;
+      const contractPaybackRate = contractPrincipalDollars > 0 ? ((cumInterest / contractPrincipalDollars) * 100).toFixed(1) : 0;
 
       const hasCurrentMonthPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
@@ -1045,7 +1089,10 @@
         <td class="num-font fw-bold fs-6">${c.amount} 萬</td>
         <td class="num-font fw-semibold" style="color: var(--accent-rate);">${c.rate}%</td>
         <td class="num-font fw-bold" style="color: var(--accent-emerald);">${c.status === '合約有效' ? monthlyGain.toLocaleString() : '-'}</td>
-        <td class="num-font fw-bold" style="color: var(--accent-emerald);">${cumInterest.toLocaleString()} 元</td>
+        <td>
+          <div class="num-font fw-bold" style="color: var(--accent-emerald);">${cumInterest.toLocaleString()} 元</div>
+          <div class="text-secondary small" style="font-size: 0.72rem;">回收率 <span class="num-font text-white">${contractPaybackRate}%</span></div>
+        </td>
         <td class="num-font" style="color: var(--text-muted);">${c.startDate}</td>
         <td class="num-font" style="color: var(--text-muted);">${endDate}</td>
         <td><span class="status-pill pill-neutral num-font">${nextWed}</span></td>
@@ -1132,17 +1179,11 @@
     return list;
   }
 
-  // =========================================================================
-  // 會計逆向推算法：由當前本金規模與資本異動日誌精確回推各歷史月份本金
-  // =========================================================================
   function getActivePrincipalInMonth(ym) {
-    // 1. 基期：以當前有效合約之總在約本金為基準 (590 萬)
     const currentActivePrincipal = contracts
       .filter(c => c.status === "合約有效")
       .reduce((sum, c) => sum + Number(c.amount), 0);
 
-    // 2. 逆向推算：凡是在 ym 之後才生效的注資加碼，該月尚未發生，予以扣除；
-    //    凡是在 ym 之後才生效的部分回金，該月資金仍在運作中，予以加回 (扣除負數即加回)。
     let deduction = 0;
 
     topupLogs.forEach(log => {
@@ -1157,7 +1198,6 @@
       }
     });
 
-    // 3. 防呆校驗：若未來新增非 1~7 號的全新獨立合約且起息在 ym 之後，該月份尚未注資，予以扣除
     const initialContractIds = new Set(["1", "2", "3", "4", "5", "6", "7"]);
     contracts.forEach(c => {
       const cYM = (c.startDate || "").substring(0, 7);
@@ -1183,7 +1223,6 @@
       document.getElementById('main-chart-title').innerText = "🏔️ 總資產累積雪球曲線 (萬元)";
       document.getElementById('main-chart-desc').innerText = "底層在約本金 ＋ 頂層累計配息 (可見總累積資產斜率)";
 
-      // 時間軸固定自 2026-06 記錄起點至當前月份
       const payoutMonths = payouts.map(p => p.date.substring(0, 7)).sort();
       const startYM = (payoutMonths.length > 0 && payoutMonths[0] < "2026-06") ? payoutMonths[0] : "2026-06";
       const endYM = (payoutMonths.length > 0 && payoutMonths[payoutMonths.length - 1] > currentYM) ? payoutMonths[payoutMonths.length - 1] : currentYM;
@@ -1194,11 +1233,9 @@
       const cumulativePayoutData = [];
 
       timelineMonths.forEach(ym => {
-        // 1. 底層本金：6月精確回推為 570 萬，7月起為 590 萬
         const pSum = getActivePrincipalInMonth(ym);
         principalData.push(pSum);
 
-        // 2. 頂層累計配息：截至該月份為止累計落袋之利息現金 (萬元)
         const cumInterest = payouts
           .filter(p => p.date.substring(0, 7) <= ym)
           .reduce((sum, p) => sum + Number(p.amount), 0) / 10000;
@@ -1885,7 +1922,6 @@
       status: "合約有效"
     });
 
-    // 自動同步寫入資本日誌，確保未來雪球回推精準
     topupLogs.push({
       id: `TOP-${Date.now()}`,
       date: startDate,
