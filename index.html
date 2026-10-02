@@ -52,7 +52,7 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 14px;
-      padding: 24px;
+      padding: 22px 24px;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
       transition: border-color 0.2s ease, transform 0.2s ease;
     }
@@ -76,7 +76,14 @@
     .kpi-value {
       font-size: 2.1rem;
       font-weight: 700;
-      margin-top: 6px;
+      margin-top: 4px;
+      margin-bottom: 6px;
+    }
+
+    .kpi-bottom-box {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 8px;
+      margin-top: 8px;
     }
 
     .btn-action {
@@ -281,32 +288,75 @@
     </div>
   </div>
 
-  <!-- 四大核心 KPI 卡片 -->
+  <!-- 四大核心 KPI 卡片 (規格化三層架構：高度齊平、微型進度條全面對齊) -->
   <div class="row g-3 mb-4">
+    <!-- 卡片 1：總有效在約本金規模 -->
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="dark-card">
-        <div class="kpi-title">總有效在約本金規模</div>
-        <div class="kpi-value num-font" style="color: var(--accent-blue);" id="kpi-principal">0 萬</div>
-        <div class="text-secondary small mt-2">Active Capital Pool</div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="dark-card">
-        <div class="kpi-title">本月收益與領取進度</div>
-        <div class="kpi-value num-font" id="kpi-cashflow">0 元</div>
-        <div id="kpi-cashflow-sub" class="mt-2"></div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="dark-card clickable-card" onclick="openPayoutHistoryModal()" title="點擊展開歷史領息細項清單">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="kpi-title">歷史累計已領盈餘</div>
-          <span class="status-pill pill-neutral" style="font-size: 0.65rem;">展開細項 🔍</span>
+      <div class="dark-card h-100 d-flex flex-column justify-content-between">
+        <div>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="kpi-title">總有效在約本金規模</div>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">Active Pool</span>
+          </div>
+          <div class="kpi-value num-font" style="color: var(--accent-blue);" id="kpi-principal">0 萬</div>
         </div>
-        <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
-        
-        <!-- 方案 3：本金回收覆蓋率與淨風險敞口進度條 -->
-        <div class="mt-2 pt-1 border-top" style="border-color: rgba(255,255,255,0.08) !important;">
+
+        <div class="kpi-bottom-box">
+          <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+            <span class="text-secondary">加權月利率 <span class="num-font fw-bold text-white" id="kpi-weighted-rate">0.00%</span></span>
+            <span class="text-secondary">年化 <span class="num-font text-white" id="kpi-annual-rate">0.0%</span></span>
+          </div>
+          <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
+            <div class="progress-bar" id="kpi-cap-bar-6m" style="background-color: var(--accent-emerald); width: 50%;" title="半年期本金佔比"></div>
+            <div class="progress-bar" id="kpi-cap-bar-1y" style="background-color: var(--accent-purple); width: 50%;" title="一年期本金佔比"></div>
+          </div>
+          <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
+            <span>最大部位：<span class="num-font text-white" id="kpi-max-position">-</span></span>
+            <span class="text-muted">半年 <span id="kpi-term-split" class="num-font text-white">- / -</span> 一年</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 卡片 2：本月收益與領取進度 -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="dark-card h-100 d-flex flex-column justify-content-between">
+        <div>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="kpi-title">本月收益與領取進度</div>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;" id="kpi-month-tag">當期運轉</span>
+          </div>
+          <div class="kpi-value num-font" id="kpi-cashflow">0 元</div>
+        </div>
+
+        <div class="kpi-bottom-box">
+          <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+            <span id="kpi-cashflow-status-text">待領取 0 元</span>
+            <span class="text-secondary">常態：<span class="num-font text-white" id="kpi-baseline-cashflow">0</span>/月</span>
+          </div>
+          <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
+            <div class="progress-bar" id="kpi-cashflow-bar" role="progressbar" style="width: 0%; border-radius: 9999px; transition: width 0.4s ease;"></div>
+          </div>
+          <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
+            <span>入帳進度：<span class="num-font text-white" id="kpi-claimed-contracts-count">0 / 0 筆契約</span></span>
+            <span class="num-font text-white" id="kpi-claimed-percent">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 卡片 3：歷史累計已領盈餘 (回收率標準尺標) -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="dark-card clickable-card h-100 d-flex flex-column justify-content-between" onclick="openPayoutHistoryModal()" title="點擊展開歷史領息細項清單">
+        <div>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="kpi-title">歷史累計已領盈餘</div>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">展開細項 🔍</span>
+          </div>
+          <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
+        </div>
+
+        <div class="kpi-bottom-box">
           <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
             <span class="text-secondary">本金回收率 <span class="num-font fw-bold" style="color: var(--accent-emerald);" id="kpi-payback-rate">0.0%</span></span>
             <span class="text-secondary" id="kpi-payback-months">推算中...</span>
@@ -321,11 +371,32 @@
         </div>
       </div>
     </div>
+
+    <!-- 卡片 4：生效中契約序號數 -->
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="dark-card">
-        <div class="kpi-title">生效中契約序號數</div>
-        <div class="kpi-value num-font" style="color: var(--accent-purple);" id="kpi-count">0 筆</div>
-        <div class="text-secondary small mt-2">Active Contracts</div>
+      <div class="dark-card h-100 d-flex flex-column justify-content-between">
+        <div>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="kpi-title">生效中契約序號數</div>
+            <span class="status-pill pill-neutral" style="font-size: 0.65rem;">Portfolio</span>
+          </div>
+          <div class="kpi-value num-font" style="color: var(--accent-purple);" id="kpi-count">0 筆</div>
+        </div>
+
+        <div class="kpi-bottom-box">
+          <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+            <span class="text-secondary">正常生息 <span class="num-font text-white" id="kpi-contracts-healthy">0</span> 筆</span>
+            <span class="text-secondary">待洽談 <span class="num-font text-warning" id="kpi-contracts-alert">0</span> 筆</span>
+          </div>
+          <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
+            <div class="progress-bar" id="kpi-count-bar-6m" style="background-color: var(--accent-emerald); width: 50%;" title="半年期合約筆數"></div>
+            <div class="progress-bar" id="kpi-count-bar-1y" style="background-color: var(--accent-purple); width: 50%;" title="一年期合約筆數"></div>
+          </div>
+          <div class="d-flex justify-content-between text-secondary mt-1" style="font-size: 0.68rem;">
+            <span>即期警戒：<span class="num-font text-white" id="kpi-nearest-expiry">-</span></span>
+            <span class="text-muted">半年 <span id="kpi-count-split" class="num-font text-white">- / -</span> 一年</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -864,7 +935,7 @@
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
   let currentChartMode = 'snowball';
-  let currentUser = null; // 管理員登入狀態物件
+  let currentUser = null;
 
   let modalBatchPayoutInstance = null;
   let modalMergeContractInstance = null;
@@ -936,9 +1007,6 @@
     return String(p.contractId) === String(c.id);
   }
 
-  // ==========================================
-  // 管理員權限驗證核心模組
-  // ==========================================
   function handleAuthButtonClick() {
     if (currentUser) {
       if (confirm(`目前已解鎖管理員身分 (${currentUser.email})。\n是否要登出返回唯讀訪客模式？`)) {
@@ -970,7 +1038,6 @@
       });
   }
 
-  // 操作防呆攔截函式
   function requireAuth(actionCallback) {
     if (!currentUser) {
       alert("⚠️ 權限受阻：目前處於「唯讀訪客模式」，只有管理員可執行此變更！\n請先點擊上方按鈕登理解鎖。");
@@ -994,7 +1061,6 @@
         firebase.initializeApp(FIREBASE_CONFIG);
       }
 
-      // 監聽管理員登入狀態
       firebase.auth().onAuthStateChanged((user) => {
         currentUser = user;
         const authBtn = document.getElementById('btn-auth-status');
@@ -1064,7 +1130,7 @@
   }
 
   // =========================================================================
-  // 核心畫面渲染
+  // 核心畫面渲染 (包含四張 KPI 卡片高規格等高計算)
   // =========================================================================
   function renderApp() {
     const today = new Date();
@@ -1082,6 +1148,8 @@
     const monthlyBaseCashflow = activeContracts.reduce((sum, c) => sum + (c.amount * 10000 * (c.rate / 100)), 0);
 
     let thisMonthEligibleTotal = 0;
+    let eligibleContractIds = new Set();
+
     contracts.forEach(c => {
       if (c.status === "合約有效") {
         const startYM = c.startDate.substring(0, 7);
@@ -1089,54 +1157,86 @@
         const isMatured = (currentYM > startYM) || hasPriorPayouts;
         if (isMatured) {
           thisMonthEligibleTotal += Math.round(c.amount * 10000 * (c.rate / 100));
+          eligibleContractIds.add(String(c.id));
         }
       } else {
         const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
         const hasPaidFinalMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
         if (currentYM >= endYM && !hasPaidFinalMonth) {
           thisMonthEligibleTotal += Math.round(c.amount * 10000 * (c.rate / 100));
+          eligibleContractIds.add(String(c.id));
         }
       }
     });
 
-    const thisMonthClaimedTotal = payouts
-      .filter(p => p.date.startsWith(currentYM))
-      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const currentMonthPayouts = payouts.filter(p => p.date.startsWith(currentYM));
+    const thisMonthClaimedTotal = currentMonthPayouts.reduce((sum, p) => sum + Number(p.amount), 0);
+    const claimedContractIds = new Set(currentMonthPayouts.map(p => String(p.contractId)));
 
+    // ==========================================
+    // 卡片 1 演算：加權利率、年化產能、部位分佈
+    // ==========================================
+    document.getElementById('kpi-principal').innerText = `${totalPrincipal.toLocaleString()} 萬`;
+    const weightedMonthlyRate = totalPrincipal > 0 ? (monthlyBaseCashflow / (totalPrincipal * 10000)) * 100 : 0;
+    const annualRate = weightedMonthlyRate * 12;
+
+    document.getElementById('kpi-weighted-rate').innerText = `${weightedMonthlyRate.toFixed(2)}%`;
+    document.getElementById('kpi-annual-rate').innerText = `${annualRate.toFixed(1)}%`;
+
+    const halfYearPrincipal = activeContracts.filter(c => c.term === "半年").reduce((sum, c) => sum + Number(c.amount), 0);
+    const oneYearPrincipal = activeContracts.filter(c => c.term === "一年").reduce((sum, c) => sum + Number(c.amount), 0);
+    const halfYearCapPct = totalPrincipal > 0 ? Math.round((halfYearPrincipal / totalPrincipal) * 100) : 0;
+    const oneYearCapPct = totalPrincipal > 0 ? (100 - halfYearCapPct) : 0;
+
+    document.getElementById('kpi-cap-bar-6m').style.width = `${halfYearCapPct}%`;
+    document.getElementById('kpi-cap-bar-1y').style.width = `${oneYearCapPct}%`;
+    document.getElementById('kpi-term-split').innerText = `${halfYearCapPct}% / ${oneYearCapPct}%`;
+
+    let maxContract = activeContracts.reduce((max, c) => Number(c.amount) > Number(max.amount || 0) ? c : max, {});
+    document.getElementById('kpi-max-position').innerText = maxContract.id ? `${maxContract.amount} 萬 (#${maxContract.id})` : "-";
+
+    // ==========================================
+    // 卡片 2 演算：當月領取進度與百分比
+    // ==========================================
     const kpiCashflowElem = document.getElementById('kpi-cashflow');
-    const kpiCashflowSubElem = document.getElementById('kpi-cashflow-sub');
+    const cashflowStatusText = document.getElementById('kpi-cashflow-status-text');
+    const cashflowBar = document.getElementById('kpi-cashflow-bar');
+    const claimedCountElem = document.getElementById('kpi-claimed-contracts-count');
+    const claimedPercentElem = document.getElementById('kpi-claimed-percent');
+
+    document.getElementById('kpi-baseline-cashflow').innerText = Math.round(monthlyBaseCashflow).toLocaleString();
+
+    let cashflowPct = 0;
+    if (thisMonthEligibleTotal > 0) {
+      cashflowPct = Math.min(100, Math.round((thisMonthClaimedTotal / thisMonthEligibleTotal) * 100));
+    } else if (thisMonthClaimedTotal > 0) {
+      cashflowPct = 100;
+    }
+
+    cashflowBar.style.width = `${cashflowPct}%`;
+    claimedCountElem.innerText = `${claimedContractIds.size} / ${eligibleContractIds.size} 筆契約`;
+    claimedPercentElem.innerText = `${cashflowPct}%`;
 
     if (thisMonthClaimedTotal === 0) {
       kpiCashflowElem.style.color = "var(--accent-amber)";
       kpiCashflowElem.innerText = `${thisMonthEligibleTotal.toLocaleString()} 元`;
-      kpiCashflowSubElem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <span class="status-pill pill-warning"><span class="status-dot"></span>⚠️ 本月待領取</span>
-          <span class="text-secondary small">常態：${Math.round(monthlyBaseCashflow).toLocaleString()}/月</span>
-        </div>
-      `;
+      cashflowStatusText.innerHTML = `<span class="text-warning fw-semibold">⚠️ 待全數領取</span>`;
+      cashflowBar.className = "progress-bar bg-warning";
     } else if (thisMonthClaimedTotal >= thisMonthEligibleTotal && thisMonthEligibleTotal > 0) {
       kpiCashflowElem.style.color = "var(--accent-emerald)";
       kpiCashflowElem.innerText = `${thisMonthClaimedTotal.toLocaleString()} 元`;
-      kpiCashflowSubElem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <span class="status-pill pill-active"><span class="status-dot"></span>✅ 本月已全數入帳</span>
-          <span class="text-secondary small">常態：${Math.round(monthlyBaseCashflow).toLocaleString()}/月</span>
-        </div>
-      `;
+      cashflowStatusText.innerHTML = `<span class="text-success fw-semibold">✅ 本月已全領</span>`;
+      cashflowBar.className = "progress-bar bg-success";
     } else {
-      const percent = thisMonthEligibleTotal > 0 ? Math.round((thisMonthClaimedTotal / thisMonthEligibleTotal) * 100) : 0;
       kpiCashflowElem.style.color = "var(--accent-blue)";
       kpiCashflowElem.innerText = `${thisMonthClaimedTotal.toLocaleString()} / ${thisMonthEligibleTotal.toLocaleString()} 元`;
-      kpiCashflowSubElem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <span class="status-pill pill-neutral"><span class="status-dot"></span>進度 ${percent}%</span>
-          <span class="text-secondary small">常態：${Math.round(monthlyBaseCashflow).toLocaleString()}/月</span>
-        </div>
-      `;
+      cashflowStatusText.innerHTML = `<span class="text-info fw-semibold">部分已入帳</span>`;
+      cashflowBar.className = "progress-bar bg-info";
     }
 
-    // 方案 3：本金回收覆蓋率、淨風險敞口與回本時程
+    // ==========================================
+    // 卡片 3 演算：本金回收覆蓋率與淨風險
+    // ==========================================
     const totalPrincipalDollars = totalPrincipal * 10000;
     const paybackRate = totalPrincipalDollars > 0 ? ((totalInterestDollars / totalPrincipalDollars) * 100) : 0;
     const netRiskDollars = Math.max(0, totalPrincipalDollars - totalInterestDollars);
@@ -1150,10 +1250,7 @@
       paybackMonthsText = `約 ${monthsLeft} 個月全額回本`;
     }
 
-    document.getElementById('kpi-principal').innerText = `${totalPrincipal.toLocaleString()} 萬`;
     document.getElementById('kpi-interest').innerText = `${totalInterest.toFixed(2)} 萬`;
-    document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
-
     document.getElementById('kpi-payback-rate').innerText = `${paybackRate.toFixed(2)}%`;
     document.getElementById('kpi-payback-months').innerText = paybackMonthsText;
     document.getElementById('kpi-net-risk').innerText = `${netRisk} 萬`;
@@ -1167,7 +1264,52 @@
       barElem.className = "progress-bar bg-warning";
     }
 
-    // 渲染主監控表
+    // ==========================================
+    // 卡片 4 演算：合約張數健康度與即期提醒
+    // ==========================================
+    document.getElementById('kpi-count').innerText = `${activeContracts.length} 筆`;
+
+    let alertContractsCount = 0;
+    let minDaysLeft = Infinity;
+    let nearestContractId = null;
+
+    activeContracts.forEach(c => {
+      const endDate = calculateEndDate(c.startDate, c.term);
+      const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
+      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const endYM = endDate.substring(0, 7);
+
+      if (daysLeft <= 30 || endYM === currentYM) {
+        alertContractsCount++;
+      }
+      if (daysLeft < minDaysLeft) {
+        minDaysLeft = daysLeft;
+        nearestContractId = c.id;
+      }
+    });
+
+    const healthyContractsCount = activeContracts.length - alertContractsCount;
+    document.getElementById('kpi-contracts-healthy').innerText = healthyContractsCount;
+    document.getElementById('kpi-contracts-alert').innerText = alertContractsCount;
+
+    const halfYearCount = activeContracts.filter(c => c.term === "半年").length;
+    const oneYearCount = activeContracts.filter(c => c.term === "一年").length;
+    const halfYearCountPct = activeContracts.length > 0 ? Math.round((halfYearCount / activeContracts.length) * 100) : 0;
+    const oneYearCountPct = activeContracts.length > 0 ? (100 - halfYearCountPct) : 0;
+
+    document.getElementById('kpi-count-bar-6m').style.width = `${halfYearCountPct}%`;
+    document.getElementById('kpi-count-bar-1y').style.width = `${oneYearCountPct}%`;
+    document.getElementById('kpi-count-split').innerText = `${halfYearCount} 筆 / ${oneYearCount} 筆`;
+
+    if (nearestContractId !== null && minDaysLeft !== Infinity) {
+      document.getElementById('kpi-nearest-expiry').innerText = `#${nearestContractId} 剩 ${minDaysLeft} 天`;
+    } else {
+      document.getElementById('kpi-nearest-expiry').innerText = "無即期合約";
+    }
+
+    // ==========================================
+    // 渲染主監控表 (8欄精簡版)
+    // ==========================================
     const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
@@ -1368,16 +1510,11 @@
     return list;
   }
 
-  // =========================================================================
-  // 乾淨強韌的時間軸逆向滾動推算法 (無寫死字串，終身自動維護)
-  // =========================================================================
   function getActivePrincipalInMonth(ym) {
     const currentActivePrincipal = contracts
       .filter(c => c.status === "合約有效")
       .reduce((sum, c) => sum + Number(c.amount), 0);
 
-    // 回推所有發生在 ym 之後的資本變化事件：
-    // 加碼注資 (正數) 予以扣除；回金退場 (負數) 予以加回 (扣除負數即加回)。
     let futureCapitalDeltas = 0;
     topupLogs.forEach(log => {
       const logYM = (log.date || "").substring(0, 7);
@@ -1902,9 +2039,6 @@
     alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！舊約已封存歸檔，歷史領息完全承接。`);
   }
 
-  // ==========================================
-  // 到期完全回金 (結案退場) 模組
-  // ==========================================
   function openReturnCapitalModal(target) {
     let c = null;
     if (typeof target === 'string') {
@@ -1946,7 +2080,7 @@
       id: `TOP-${Date.now()}`,
       date: returnDate,
       contractId: String(c.id),
-      topupAmount: -returnAmount, // 負數代表資本抽回退場
+      topupAmount: -returnAmount,
       oldAmount: returnAmount,
       newAmount: 0,
       note: userNote || `契約 #${c.id} 到期本金全額退款結案 (本金抽回 ${returnAmount} 萬)`
