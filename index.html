@@ -484,7 +484,7 @@
     </div>
   </div>
 
-  <!-- 契約即時排程監控主表 (已更名為「合約走期與下期生效」，手機端首欄 Sticky 凍結) -->
+  <!-- 契約即時排程監控主表 -->
   <div class="dark-card mb-4 p-0" style="overflow: hidden;">
     <div class="p-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-color: rgba(255,255,255,0.08) !important;">
       <div>
@@ -1204,8 +1204,10 @@
     contracts.forEach(c => {
       if (c.status === "合約有效") {
         const startYM = c.startDate.substring(0, 7);
-        const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < currentYM);
-        const isMatured = (currentYM > startYM) || hasPriorPayouts;
+        // 精準跨月判定：必須起息年月早於當月；或若起息年月等於當月，必須該特定實體 (uid) 在當月之前有領息紀錄
+        const hasPriorPayoutsThisEntity = payouts.some(p => isPayoutOfContract(p, c) && p.date.substring(0, 7) < currentYM);
+        const isMatured = (currentYM > startYM) || (currentYM === startYM && hasPriorPayoutsThisEntity);
+        
         if (isMatured) {
           thisMonthEligibleTotal += Math.round(c.amount * 10000 * (c.rate / 100));
           eligibleContractIds.add(String(c.id));
@@ -1381,7 +1383,7 @@
       const isFinalMonth = (c.status === "合約有效" && currentYM === endYM);
 
       const cumInterest = payouts
-        .filter(p => String(p.contractId) === String(c.id))
+        .filter(p => isPayoutOfContract(p, c))
         .reduce((sum, p) => sum + Number(p.amount), 0);
 
       const contractPrincipalDollars = Number(c.amount) * 10000;
@@ -1389,8 +1391,8 @@
 
       const hasCurrentMonthPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
-      const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < currentYM);
-      const isMatured = (currentYM > startYM) || hasPriorPayouts;
+      const hasPriorPayoutsThisEntity = payouts.some(p => isPayoutOfContract(p, c) && p.date.substring(0, 7) < currentYM);
+      const isMatured = (currentYM > startYM) || (currentYM === startYM && hasPriorPayoutsThisEntity);
       const isOverdue = c.status === "合約有效" && !hasCurrentMonthPayout && isMatured;
 
       let alerts = [];
@@ -1409,6 +1411,8 @@
 
         if (isOverdue) {
           alerts.push(`<span class="status-pill pill-warning"><span class="status-dot"></span>⚠️ 待領息</span>`);
+        } else if (!isMatured) {
+          alerts.push(`<span class="status-pill pill-neutral"><span class="status-dot"></span>🔒 跨月首期 (次月起領)</span>`);
         }
 
         if (alerts.length === 0) {
@@ -1815,7 +1819,7 @@
       const startYM = c.startDate.substring(0, 7);
       const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
 
-      const hasPriorPayouts = payouts.some(p => String(p.contractId) === String(c.id) && p.date.substring(0, 7) < payoutYM);
+      const hasPriorPayoutsThisEntity = payouts.some(p => isPayoutOfContract(p, c) && p.date.substring(0, 7) < payoutYM);
       const isAlreadyPaidThisMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(payoutYM));
 
       let canSelect = false;
@@ -1834,7 +1838,7 @@
           statusBadge += ` <span class="status-pill pill-active ms-1">✅ 已領過</span>`;
         }
       } else {
-        const isMatured = (payoutYM > startYM) || hasPriorPayouts;
+        const isMatured = (payoutYM > startYM) || (payoutYM === startYM && hasPriorPayoutsThisEntity);
         const isFinalMonth = (payoutYM === endYM);
 
         if (!isMatured) {
@@ -1851,7 +1855,7 @@
               : `<span class="status-pill pill-active ms-2">✅ ${payoutYM.split('-')[1]}月已領</span>`;
           } else if (isFinalMonth) {
             statusBadge = `<span class="status-pill pill-alert ms-2">🏁 本約期滿最後一期</span>`;
-          } else if (startYM === payoutYM && hasPriorPayouts) {
+          } else if (startYM === payoutYM && hasPriorPayoutsThisEntity) {
             statusBadge = `<span class="status-pill pill-active ms-2">🔄 接續換約期</span>`;
           }
         }
@@ -2360,7 +2364,7 @@
 
   function deleteContract(idx) {
     const c = contracts[idx];
-    const hasPayouts = payouts.some(p => String(p.contractId) === String(c.id));
+    const hasPayouts = payouts.some(p => isPayoutOfContract(p, c));
     if (hasPayouts) {
       if (!confirm(`⚠️ 警告：契約 #${c.id} 在流水帳中已有實際領息紀錄！\n若此合約是到期不玩，請使用「💸 回金」結案封存，勿使用物理刪除。\n\n確定仍要強制抹除這筆合約嗎？`)) {
         return;
