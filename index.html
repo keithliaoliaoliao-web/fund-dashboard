@@ -1051,11 +1051,12 @@
     }
   }
 
+  // 嚴格過濾：必須屬於該契約實體 uid，或若為舊資料則領息日期不得早於該合約起息日
   function isPayoutOfContract(p, c) {
     if (p.contractUid && c.uid) {
       return p.contractUid === c.uid;
     }
-    return String(p.contractId) === String(c.id);
+    return String(p.contractId) === String(c.id) && (!c.startDate || p.date >= c.startDate);
   }
 
   function handleAuthButtonClick() {
