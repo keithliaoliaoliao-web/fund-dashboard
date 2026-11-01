@@ -1191,6 +1191,16 @@
 
     document.getElementById('update-date').innerText = `系統基期：${todayStr}`;
 
+    // 依契約序號數字/字串智慧排序 (1, 2, 3, 4, 5, 6, 7...)
+    contracts.sort((a, b) => {
+      const numA = parseFloat(a.id);
+      const numB = parseFloat(b.id);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        if (numA !== numB) return numA - numB;
+      }
+      return String(a.id).localeCompare(String(b.id), 'zh-Hant', { numeric: true });
+    });
+
     const activeContracts = contracts.filter(c => c.status === "合約有效");
     const totalPrincipal = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
     const totalInterestDollars = payouts.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -1204,7 +1214,6 @@
     contracts.forEach(c => {
       if (c.status === "合約有效") {
         const startYM = c.startDate.substring(0, 7);
-        // 精準跨月判定：必須起息年月早於當月；或若起息年月等於當月，必須該特定實體 (uid) 在當月之前有領息紀錄
         const hasPriorPayoutsThisEntity = payouts.some(p => isPayoutOfContract(p, c) && p.date.substring(0, 7) < currentYM);
         const isMatured = (currentYM > startYM) || (currentYM === startYM && hasPriorPayoutsThisEntity);
         
