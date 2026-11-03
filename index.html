@@ -329,7 +329,7 @@
     </div>
     
     <div class="d-flex flex-wrap gap-2 action-btn-group">
-      <button class="btn btn-action btn-blue-glow" onclick="requireAuth(() => new bootstrap.Modal(document.getElementById('modalAddContract')).show())">＋ 新增契約</button>
+      <button class="btn btn-action btn-blue-glow" onclick="requireAuth(openAddContractModal)">＋ 新增契約</button>
       <button class="btn btn-action btn-purple-glow" onclick="requireAuth(openMergeModal)">🔀 合約合併與加碼</button>
       <button class="btn btn-action btn-emerald-glow" onclick="requireAuth(openBatchPayoutModal)">💰 登記現金領息</button>
       <button class="btn btn-action" onclick="openPayoutHistoryModal()">📜 領息流水細項</button>
@@ -599,8 +599,8 @@
             <input type="number" id="c-rate" class="form-control" required min="0.1" step="0.1" placeholder="1.5">
           </div>
           <div class="mb-3">
-            <label class="form-label small">起息生效日</label>
-            <input type="date" id="c-start" class="form-control" required onclick="this.showPicker()">
+            <label class="form-label small">起息生效日 (自動校正為週三)</label>
+            <input type="date" id="c-start" class="form-control" required onclick="this.showPicker()" onchange="enforceWednesday(this)">
           </div>
           <button type="submit" class="btn btn-action btn-blue-glow w-100 py-2 mt-2">確認建立契約</button>
         </form>
@@ -660,7 +660,7 @@
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label small">新約定期限</label>
-              <select id="r-new-term" class="form-select">
+              <select id="r-new-term" class="form-select" onchange="updateRenewSummary()">
                 <option value="半年">半年期 (6 個月)</option>
                 <option value="一年">一年期 (12 個月)</option>
               </select>
@@ -671,7 +671,10 @@
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label small">換約生效日 (自動校準週三)</label>
-              <input type="date" id="r-new-start" class="form-control" required onclick="this.showPicker()">
+              <input type="date" id="r-new-start" class="form-control" required onclick="this.showPicker()" onchange="enforceWednesday(this)">
+            </div>
+            <div class="col-12">
+              <div class="small" style="color: var(--accent-amber);" id="r-new-maturity-display">新約到期日：-</div>
             </div>
             <div class="col-12">
               <label class="form-label small">換約備註說明</label>
@@ -711,8 +714,8 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label small">本金退款生效日 (生效月份起不再計息)</label>
-            <input type="date" id="ret-date" class="form-control" required onclick="this.showPicker()">
+            <label class="form-label small">本金退款生效日 (生效月份起不再計息、自動校正為週三)</label>
+            <input type="date" id="ret-date" class="form-control" required onclick="this.showPicker()" onchange="enforceWednesday(this)">
           </div>
           <div class="mb-3">
             <label class="form-label small">回金結案說明備註</label>
@@ -859,8 +862,8 @@
               <input type="number" id="m-rate" class="form-control" required min="0.1" step="0.1" placeholder="1.8">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label small">生效起息日</label>
-              <input type="date" id="m-start" class="form-control" required onclick="this.showPicker()">
+              <label class="form-label small">生效起息日 (自動校正為週三)</label>
+              <input type="date" id="m-start" class="form-control" required onclick="this.showPicker()" onchange="enforceWednesday(this)">
             </div>
             <div class="col-12">
               <label class="form-label small">備註說明</label>
@@ -1018,16 +1021,52 @@
     return formatLocalDate(d);
   }
 
-  function calculateEndDate(startDateStr, term) {
-    const d = parseLocalDate(startDateStr);
-    const months = (term === "半年") ? 6 : 12;
+  // 全面強制「生效日一定是週三」：非週三自動校正為最近的下一步週三，並於欄位下方提示
+  function enforceWednesday(inputEl) {
+    if (!inputEl || !inputEl.value) return "";
+    const corrected = calculateNextWednesday(inputEl.value);
+    if (corrected === "-") return "";
+    if (corrected !== inputEl.value) {
+      inputEl.value = corrected;
+      showFieldHint(inputEl, `📅 非週三，已自動校正為：${corrected}`);
+    }
+    return corrected;
+  }
+
+  // 在欄位下方顯示短暫的提示訊息
+  function showFieldHint(inputEl, msg) {
+    let hint = inputEl.parentElement.querySelector('.wed-correct-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'wed-correct-hint small mt-1';
+      hint.style.color = 'var(--accent-amber)';
+      inputEl.parentElement.appendChild(hint);
+    }
+    hint.textContent = msg;
+    clearTimeout(hint._hintTimer);
+    hint._hintTimer = setTimeout(() => { hint.textContent = ''; }, 4000);
+  }
+
+  // 依「原日期」加減月份（目標月份天數不足時取月底）
+  function addMonthsKeepingDay(dateStr, months) {
+    const d = parseLocalDate(dateStr);
     const originalDay = d.getDate();
-    
+
     d.setMonth(d.getMonth() + months);
     if (d.getDate() < originalDay) {
       d.setDate(0);
     }
     return formatLocalDate(d);
+  }
+
+  function calculateEndDate(startDateStr, term) {
+    return addMonthsKeepingDay(startDateStr, (term === "半年") ? 6 : 12);
+  }
+
+  // 合約實際到期日：換約時錨定的原到期日優先，否則照生效日＋期數計算
+  function getContractEndDate(c) {
+    if (c.maturityDate) return c.maturityDate;
+    return calculateEndDate(c.startDate, c.term);
   }
 
   function ensureDataIntegrity() {
@@ -1223,7 +1262,7 @@
           eligibleContractIds.add(String(c.id));
         }
       } else {
-        const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
+        const endYM = getContractEndDate(c).substring(0, 7);
         const hasPaidFinalMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
         if (currentYM >= endYM && !hasPaidFinalMonth) {
           thisMonthEligibleTotal += Math.round(c.amount * 10000 * (c.rate / 100));
@@ -1337,7 +1376,7 @@
     let nearestContractId = null;
 
     activeContracts.forEach(c => {
-      const endDate = calculateEndDate(c.startDate, c.term);
+      const endDate = getContractEndDate(c);
       const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const endYM = endDate.substring(0, 7);
@@ -1381,12 +1420,13 @@
       const isDecommissioned = (c.status !== "合約有效");
       if (isDecommissioned && !showDecommissioned) return;
 
-      const endDate = calculateEndDate(c.startDate, c.term);
+      const endDate = getContractEndDate(c);
       const endYM = endDate.substring(0, 7);
       const nextWed = calculateNextWednesday(endDate);
       const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const monthlyGain = Math.round(c.amount * 10000 * (c.rate / 100));
+      const maturityAnchorNote = c.maturityDate ? '<div class="small mt-1" style="font-size: 0.68rem; color: var(--accent-amber);">📌 到期日錨定原日期</div>' : '';
 
       const isNegotiationPeriod = daysLeft <= 30 && daysLeft > 0 && c.status === "合約有效";
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
@@ -1488,6 +1528,7 @@
         <td>
           <div class="num-font" style="font-size: 0.85rem; color: var(--text-main);">${c.startDate} <span class="text-secondary">➔</span> ${endDate}</div>
           <div class="text-secondary small mt-1" style="font-size: 0.72rem;">週三生效：<span class="num-font text-white">${nextWed}</span></div>
+          ${maturityAnchorNote}
         </td>
 
         <td>${countdownPill}</td>
@@ -1805,7 +1846,7 @@
       if (c.status === "合約有效") {
         candidateItems.push({ contract: c, isOldPendingFinal: false });
       } else {
-        const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
+        const endYM = getContractEndDate(c).substring(0, 7);
         const hasPaidFinalMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
         const isOldPendingFinal = (payoutYM >= endYM) && !hasPaidFinalMonth;
 
@@ -1827,7 +1868,7 @@
       const c = item.contract;
       const isOldPendingFinal = item.isOldPendingFinal;
       const startYM = c.startDate.substring(0, 7);
-      const endYM = calculateEndDate(c.startDate, c.term).substring(0, 7);
+      const endYM = getContractEndDate(c).substring(0, 7);
 
       const hasPriorPayoutsThisEntity = payouts.some(p => isPayoutOfContract(p, c) && p.date.substring(0, 7) < payoutYM);
       const isAlreadyPaidThisMonth = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(payoutYM));
@@ -2006,7 +2047,7 @@
     }
     if (!c) return;
 
-    const endDate = calculateEndDate(c.startDate, c.term);
+    const endDate = getContractEndDate(c);
     const nextWed = calculateNextWednesday(endDate);
 
     document.getElementById('r-old-uid').value = c.uid;
@@ -2040,6 +2081,15 @@
       document.getElementById('r-calc-amount-display').innerText = `${newTotal} 萬元 (${adjust < 0 ? '回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續約續跑')})`;
       document.getElementById('r-calc-amount-display').style.color = "var(--accent-blue)";
     }
+
+    // 新約到期日預覽：錨定原到期日，不隨週三生效日漂移
+    const oldEnd = document.getElementById('r-old-enddate').value;
+    const matEl = document.getElementById('r-new-maturity-display');
+    if (matEl && oldEnd) {
+      const newTerm = document.getElementById('r-new-term').value;
+      const newMat = addMonthsKeepingDay(oldEnd, (newTerm === "半年") ? 6 : 12);
+      matEl.innerHTML = `📌 新約到期日：<span class="num-font fw-bold text-white">${newMat}</span>（錨定原到期日 ${oldEnd}，僅生效日校正為週三）`;
+    }
   }
 
   function submitRenewContract(e) {
@@ -2071,8 +2121,14 @@
 
     const newTerm = document.getElementById('r-new-term').value;
     const newRate = Number(document.getElementById('r-new-rate').value);
-    const newStart = document.getElementById('r-new-start').value;
+    const newStartInput = document.getElementById('r-new-start');
+    enforceWednesday(newStartInput);
+    const newStart = newStartInput.value;
     const userNote = document.getElementById('r-note').value.trim();
+
+    // 到期日錨定：新約到期日＝原到期日＋新期數（日號固定，不隨週三生效日漂移）
+    const oldMaturity = getContractEndDate(oldContract);
+    const newMaturity = addMonthsKeepingDay(oldMaturity, (newTerm === "半年") ? 6 : 12);
 
     let oldStatus = "已期滿續約";
     if (adjust < 0) oldStatus = "部分回金換約";
@@ -2087,6 +2143,7 @@
       amount: newTotal,
       rate: newRate,
       startDate: newStart,
+      maturityDate: newMaturity,
       status: "合約有效"
     });
 
@@ -2103,7 +2160,7 @@
     saveData();
     modalRenewContractInstance.hide();
     renderApp();
-    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！舊約已封存歸檔，歷史領息完全承接。`);
+    alert(`🎉 續約成功！\n契約 #${newId} (總額 ${newTotal} 萬) 已正式更新並同步至雲端！舊約已封存歸檔，歷史領息完全承接。\n📌 新約到期日：${newMaturity}（錨定原到期日，不隨週三生效日漂移）`);
   }
 
   function openReturnCapitalModal(target) {
@@ -2116,8 +2173,15 @@
     }
     if (!c) return;
 
-    const endDate = calculateEndDate(c.startDate, c.term);
+    const endDate = getContractEndDate(c);
     const nextWed = calculateNextWednesday(endDate);
+    const endYM = endDate.substring(0, 7);
+
+    const hasFinalPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
+    if (!hasFinalPayout) {
+      alert(`⚠️ 無法回金：契約 #${c.id} 的到期月（${endYM}）還沒有最後一期的入帳紀錄。\n\n本系統僅支援「到期回金」，請先至「💰 登記現金領息」登記最後一期，再回來執行回金結案。`);
+      return;
+    }
 
     document.getElementById('ret-contract-uid').value = c.uid;
     document.getElementById('ret-contract-id').value = c.id;
@@ -2137,7 +2201,16 @@
     const c = contracts.find(item => item.uid === uid);
     if (!c) return;
 
-    const returnDate = document.getElementById('ret-date').value;
+    const endYM = getContractEndDate(c).substring(0, 7);
+    const hasFinalPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(endYM));
+    if (!hasFinalPayout) {
+      alert(`⚠️ 無法回金：契約 #${c.id} 的到期月（${endYM}）還沒有最後一期的入帳紀錄。\n\n本系統僅支援「到期回金」，請先至「💰 登記現金領息」登記最後一期，再回來執行回金結案。`);
+      return;
+    }
+
+    const retDateInput = document.getElementById('ret-date');
+    enforceWednesday(retDateInput);
+    const returnDate = retDateInput.value;
     const userNote = document.getElementById('ret-note').value.trim();
     const returnAmount = Number(c.amount);
 
@@ -2157,6 +2230,16 @@
     modalReturnCapitalInstance.hide();
     renderApp();
     alert(`🎉 契約 #${c.id} 已正式全額回金除役結案！\n在約總本金已扣除 ${returnAmount} 萬，歷史流水帳與雪球歷程完整妥善保留。`);
+  }
+
+  // 新增契約：起息生效日預設為下一個週三，並強制校正
+  function openAddContractModal() {
+    const startInput = document.getElementById('c-start');
+    if (!startInput.value) {
+      startInput.value = calculateNextWednesday(formatLocalDate(new Date()));
+    }
+    enforceWednesday(startInput);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAddContract')).show();
   }
 
   function openMergeModal() {
@@ -2186,7 +2269,7 @@
     });
 
     document.getElementById('m-topup').value = 0;
-    document.getElementById('m-start').value = formatLocalDate(new Date());
+    document.getElementById('m-start').value = calculateNextWednesday(formatLocalDate(new Date()));
     document.getElementById('m-note').value = "";
     updateMergeSummary();
     modalMergeContractInstance.show();
@@ -2234,7 +2317,9 @@
       return;
     }
 
-    const startDate = document.getElementById('m-start').value;
+    const startInput = document.getElementById('m-start');
+    enforceWednesday(startInput);
+    const startDate = startInput.value;
     const userNote = document.getElementById('m-note').value.trim();
 
     contracts.forEach(c => {
@@ -2342,7 +2427,9 @@
       return;
     }
 
-    const startDate = document.getElementById('c-start').value;
+    const startInput = document.getElementById('c-start');
+    enforceWednesday(startInput);
+    const startDate = startInput.value;
     const amount = Number(document.getElementById('c-amount').value);
     const newUid = `C_${newId}_${startDate.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
 
