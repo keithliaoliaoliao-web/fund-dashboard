@@ -505,7 +505,7 @@
             <th style="min-width: 90px;">契約序號</th>
             <th style="min-width: 95px;">本金規模</th>
             <th style="min-width: 105px;">預計月收益</th>
-            <th style="min-width: 135px; color: var(--accent-emerald);">累計領息 / 回收</th>
+            <th style="min-width: 135px; color: var(--accent-emerald);" title="有效合約＝同序號投資線累計（換約不歸零、含合併來源）">累計領息 / 回收</th>
             <th style="min-width: 195px;">合約走期與下期生效</th>
             <th style="min-width: 95px;">期滿倒數</th>
             <th style="min-width: 140px;">警示與提醒</th>
@@ -1069,6 +1069,36 @@
     return calculateEndDate(c.startDate, c.term);
   }
 
+  // 收集「投資線」的所有契約序號（含合併來源遞迴；前提：同序號＝同一條線）
+  function collectSeriesIds(contractId, acc) {
+    const set = acc || new Set();
+    const key = String(contractId);
+    if (set.has(key)) return set;
+    set.add(key);
+    contracts.forEach(c => {
+      if (String(c.id) === key && Array.isArray(c.mergedFrom)) {
+        c.mergedFrom.forEach(srcId => collectSeriesIds(srcId, set));
+      }
+    });
+    return set;
+  }
+
+  // 該契約所屬投資線的累計已領配息（同序號所有期數＋合併來源）
+  function getSeriesPayoutTotal(c) {
+    const seriesIds = collectSeriesIds(c.id);
+    return payouts
+      .filter(p => seriesIds.has(String(p.contractId)))
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }
+
+  // 該契約「前期」（本輪生效日之前）已領配息小計，用於顯示「含前期」
+  function getPriorSeriesPayoutTotal(c) {
+    const seriesIds = collectSeriesIds(c.id);
+    return payouts
+      .filter(p => seriesIds.has(String(p.contractId)) && (!c.startDate || p.date < c.startDate))
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }
+
   function ensureDataIntegrity() {
     let modified = false;
     contracts.forEach(c => {
@@ -1432,12 +1462,15 @@
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
       const isFinalMonth = (c.status === "合約有效" && currentYM === endYM);
 
-      const cumInterest = payouts
-        .filter(p => isPayoutOfContract(p, c))
-        .reduce((sum, p) => sum + Number(p.amount), 0);
+      // 有效合約以「同序號投資線」累計（換約不歸零）；封存的歷史列維持該期實收
+      const cumInterest = (c.status === "合約有效")
+        ? getSeriesPayoutTotal(c)
+        : payouts.filter(p => isPayoutOfContract(p, c)).reduce((sum, p) => sum + Number(p.amount), 0);
+      const priorInterest = (c.status === "合約有效") ? getPriorSeriesPayoutTotal(c) : 0;
 
       const contractPrincipalDollars = Number(c.amount) * 10000;
       const contractPaybackRate = contractPrincipalDollars > 0 ? ((cumInterest / contractPrincipalDollars) * 100).toFixed(1) : 0;
+      const priorInterestNote = (priorInterest > 0) ? `<div class="text-secondary mt-1" style="font-size: 0.68rem;">含前期 ${priorInterest.toLocaleString()} 元</div>` : '';
 
       const hasCurrentMonthPayout = payouts.some(p => isPayoutOfContract(p, c) && p.date.startsWith(currentYM));
       const startYM = c.startDate.substring(0, 7);
@@ -1523,6 +1556,7 @@
               回收 ${contractPaybackRate}%
             </span>
           </div>
+          ${priorInterestNote}
         </td>
 
         <td>
@@ -2336,6 +2370,7 @@
       amount: finalAmount,
       rate: Number(document.getElementById('m-rate').value),
       startDate: startDate,
+      mergedFrom: selectedIds.slice(),
       status: "合約有效"
     });
 
