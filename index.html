@@ -404,12 +404,12 @@
             <div class="kpi-title">歷史累計已領盈餘</div>
             <span class="status-pill pill-neutral" style="font-size: 0.65rem;">查看明細 🔍</span>
           </div>
-          <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest">0 萬</div>
+          <div class="kpi-value num-font" style="color: var(--accent-amber);" id="kpi-interest" title="包含已全額回金結案的舊約利息；在約回收率／淨風險只用目前有效合約的已領息計算">0 萬</div>
         </div>
 
         <div class="kpi-bottom-box">
           <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
-            <span class="text-secondary">回收率 <span class="num-font fw-bold" style="color: var(--accent-emerald);" id="kpi-payback-rate">0.0%</span></span>
+            <span class="text-secondary" title="在約回收率：只計目前有效合約所屬投資線的已領息；已結案舊約的利息視為已實現盈餘，不計入在約回收">在約回收率 <span class="num-font fw-bold" style="color: var(--accent-emerald);" id="kpi-payback-rate">0.0%</span></span>
             <span class="text-secondary" id="kpi-payback-months">推算中...</span>
           </div>
           <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 9999px;">
@@ -1369,9 +1369,11 @@
     // ==========================================
     // 卡片 3 演算：本金回收覆蓋率與淨風險
     // ==========================================
+    // 在約回收率：只計「目前有效合約」所屬投資線的已領息；已全額回金結案的舊線利息視為已實現盈餘，不再抵扣現在的本金
+    const activeSeriesInterestDollars = activeContracts.reduce((sum, c) => sum + getSeriesPayoutTotal(c), 0);
     const totalPrincipalDollars = totalPrincipal * 10000;
-    const paybackRate = totalPrincipalDollars > 0 ? ((totalInterestDollars / totalPrincipalDollars) * 100) : 0;
-    const netRiskDollars = Math.max(0, totalPrincipalDollars - totalInterestDollars);
+    const paybackRate = totalPrincipalDollars > 0 ? ((activeSeriesInterestDollars / totalPrincipalDollars) * 100) : 0;
+    const netRiskDollars = Math.max(0, totalPrincipalDollars - activeSeriesInterestDollars);
     const netRisk = (netRiskDollars / 10000).toFixed(2);
 
     let paybackMonthsText = "-";
