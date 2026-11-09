@@ -541,6 +541,30 @@
       </table>
     </div>
   </div>
+
+  <!-- 利率異動履歷 -->
+  <div class="dark-card mb-4 p-0" style="overflow: hidden;">
+    <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="border-color: rgba(255,255,255,0.08) !important;">
+      <div>
+        <h6 class="fw-bold mb-0">📈 利率異動履歷</h6>
+        <span class="text-secondary small">每次新增/續約/合併都留痕（利率不變也保留）</span>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark-fintech align-middle">
+        <thead>
+          <tr>
+            <th>生效日期</th>
+            <th>契約序號</th>
+            <th>利率變化</th>
+            <th>備註</th>
+            <th class="text-end">操作</th>
+          </tr>
+        </thead>
+        <tbody id="rate-log-rows"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: 管理員登入對話框 -->
@@ -626,6 +650,7 @@
           <input type="hidden" id="r-old-id">
           <input type="hidden" id="r-old-amount">
           <input type="hidden" id="r-old-enddate">
+          <input type="hidden" id="r-old-maturity-day">
 
           <div class="p-3 mb-3 rounded-3" style="background: rgba(11, 15, 25, 0.6); border: 1px solid rgba(255,255,255,0.12);">
             <div class="d-flex justify-content-between align-items-center">
@@ -765,6 +790,8 @@
             </div>
           </div>
         </div>
+
+        <div id="batch-payout-warning" class="d-none small mb-2 px-3 py-2 rounded-3" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #FBBF24;"></div>
 
         <div id="batch-payout-list" style="max-height: 350px; overflow-y: auto;"></div>
 
@@ -985,6 +1012,7 @@
   let contracts = [];
   let payouts = [];
   let topupLogs = [];
+  let rateLogs = [];
   let dbRef = null;
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
@@ -1047,16 +1075,14 @@
     hint._hintTimer = setTimeout(() => { hint.textContent = ''; }, 4000);
   }
 
-  // 依「原日期」加減月份（目標月份天數不足時取月底）
-  function addMonthsKeepingDay(dateStr, months) {
+  // 依「原日期」加減月份（目標月份天數不足時取月底；anchorDay 保留原始日號防 31→28 永久漂移）
+  function addMonthsKeepingDay(dateStr, months, anchorDay) {
     const d = parseLocalDate(dateStr);
-    const originalDay = d.getDate();
-
-    d.setMonth(d.getMonth() + months);
-    if (d.getDate() < originalDay) {
-      d.setDate(0);
-    }
-    return formatLocalDate(d);
+    const originalDay = anchorDay || d.getDate();
+    const target = new Date(d.getFullYear(), d.getMonth() + months, 1);
+    const daysInTarget = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(originalDay, daysInTarget));
+    return formatLocalDate(target);
   }
 
   function calculateEndDate(startDateStr, term) {
@@ -1067,6 +1093,14 @@
   function getContractEndDate(c) {
     if (c.maturityDate) return c.maturityDate;
     return calculateEndDate(c.startDate, c.term);
+  }
+
+  // 到期日錨點日號：防月底漂移（8/31→2/28→8/28 永遠保 31）
+  function getMaturityDay(c) {
+    if (c && c.maturityDay) return Number(c.maturityDay);
+    if (c && c.maturityDate) return parseLocalDate(c.maturityDate).getDate();
+    if (c && c.startDate) return parseLocalDate(c.startDate).getDate();
+    return null;
   }
 
   // 收集「投資線」的所有契約序號（含合併來源遞迴；前提：同序號＝同一條線）
@@ -1101,10 +1135,20 @@
 
   function ensureDataIntegrity() {
     let modified = false;
+    if (!Array.isArray(rateLogs)) rateLogs = [];
+
     contracts.forEach(c => {
       if (!c.uid) {
         c.uid = `C_${c.id}_${(c.startDate || '').replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
         modified = true;
+      }
+      // 補錨點日號（防月底漂移）：舊資料無 maturityDay 時，依到期日或生效日日號補上
+      if (!c.maturityDay) {
+        const anchor = getMaturityDay(c);
+        if (anchor) {
+          c.maturityDay = anchor;
+          modified = true;
+        }
       }
     });
 
@@ -1207,12 +1251,14 @@
           contracts = JSON.parse(JSON.stringify(DEFAULT_CONTRACTS));
           payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
           topupLogs = JSON.parse(JSON.stringify(DEFAULT_TOPUPS));
+          rateLogs = [];
           
           if (currentUser) {
             dbRef.set({
               contracts: contracts,
               payouts: payouts,
-              topupLogs: topupLogs
+              topupLogs: topupLogs,
+              rateLogs: rateLogs
             });
           }
           renderApp();
@@ -1220,6 +1266,7 @@
           contracts = cloudData.contracts || [];
           payouts = cloudData.payouts || [];
           topupLogs = cloudData.topupLogs || [];
+          rateLogs = cloudData.rateLogs || [];
           ensureDataIntegrity();
           renderApp();
         }
@@ -1243,7 +1290,8 @@
       dbRef.set({
         contracts: contracts,
         payouts: payouts,
-        topupLogs: topupLogs
+        topupLogs: topupLogs,
+        rateLogs: rateLogs
       }).catch(err => {
         alert("雲端寫入失敗：" + err.message);
       });
@@ -1587,6 +1635,7 @@
     });
 
     renderTopupLogsTable();
+    renderRateLogsTable();
     renderCharts(activeContracts);
   }
 
@@ -1626,6 +1675,43 @@
       saveData();
       renderTopupLogsTable();
       renderApp();
+    }
+  }
+
+  function renderRateLogsTable() {
+    const tbody = document.getElementById('rate-log-rows');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!rateLogs || rateLogs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary py-3">尚無利率異動履歷（新功能上線後的新增/續約/合併會自動留痕）。</td></tr>`;
+      return;
+    }
+
+    rateLogs.slice().reverse().forEach((log, revIdx) => {
+      const actualIdx = rateLogs.length - 1 - revIdx;
+      const tr = document.createElement('tr');
+      const oldLabel = (log.oldRate === null || log.oldRate === undefined) ? '<span class="text-secondary">—</span>' : `${Number(log.oldRate).toFixed(1)}%`;
+      const newLabel = `${Number(log.newRate).toFixed(1)}%`;
+      const unchanged = (log.oldRate !== null && log.oldRate !== undefined && Number(log.oldRate) === Number(log.newRate));
+      tr.innerHTML = `
+        <td class="num-font" style="color: var(--text-muted);">${log.date}</td>
+        <td><span class="num-font fw-bold" style="color: var(--accent-blue);">#${log.contractId}</span></td>
+        <td class="num-font"><span style="color: var(--text-muted);">${oldLabel}</span> <span class="text-secondary">➔</span> <span class="fw-bold text-white">${newLabel}</span>${unchanged ? ' <span class="small text-secondary">(維持不變)</span>' : ''}</td>
+        <td class="small" style="color: var(--text-secondary);">${log.note || '-'}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 2px 6px; font-size: 0.75rem;" onclick="requireAuth(() => deleteRateLog(${actualIdx}))">刪除</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function deleteRateLog(idx) {
+    if (confirm("確定要刪除這筆利率履歷嗎？(不會影響現有合約利率)")) {
+      rateLogs.splice(idx, 1);
+      saveData();
+      renderRateLogsTable();
     }
   }
 
@@ -1861,12 +1947,37 @@
     document.getElementById('batch-payout-date').value = todayStr;
     document.getElementById('show-merged-payout').checked = false;
     renderBatchPayoutItems(todayStr);
+    updateBatchPayoutWarning();
     modalBatchPayoutInstance.show();
+  }
+
+  // 補登日期超過 3 個月才警告（不硬擋，user 指示 10 警告就好）
+  function isPayoutDateTooOld(payoutDateStr) {
+    if (!payoutDateStr) return false;
+    const todayStr = formatLocalDate(new Date());
+    const limitStr = addMonthsKeepingDay(todayStr, -3);
+    return payoutDateStr < limitStr;
+  }
+
+  function updateBatchPayoutWarning() {
+    const el = document.getElementById('batch-payout-warning');
+    const dateStr = document.getElementById('batch-payout-date').value;
+    if (!el) return;
+    if (isPayoutDateTooOld(dateStr)) {
+      const todayStr = formatLocalDate(new Date());
+      const limitStr = addMonthsKeepingDay(todayStr, -3);
+      el.innerHTML = `⚠️ 入帳日期 <b>${dateStr}</b> 已超過 3 個月前（${limitStr}），通常不建議這樣補登。送出時會再確認一次，請核對是否真的領取這麼久以前的現金。`;
+      el.classList.remove('d-none');
+    } else {
+      el.classList.add('d-none');
+      el.innerHTML = '';
+    }
   }
 
   function handlePayoutDateChange() {
     const selectedDate = document.getElementById('batch-payout-date').value;
     renderBatchPayoutItems(selectedDate);
+    updateBatchPayoutWarning();
   }
 
   function renderBatchPayoutItems(payoutDateStr) {
@@ -2007,6 +2118,12 @@
       return;
     }
 
+    // 超過 3 個月補登先二次確認（警告就好，不硬擋）
+    if (isPayoutDateTooOld(payoutDate)) {
+      const ok = confirm(`⚠️ 入帳日期 ${payoutDate} 已超過 3 個月前（通常補登不會這樣久）。\n這是因為住院／出國等特殊原因，確認要繼續嗎？`);
+      if (!ok) return;
+    }
+
     const checkboxes = document.querySelectorAll('.payout-checkbox:not(:disabled)');
     pendingPayoutRecords = [];
 
@@ -2090,6 +2207,7 @@
     document.getElementById('r-old-id').value = c.id;
     document.getElementById('r-old-amount').value = c.amount;
     document.getElementById('r-old-enddate').value = endDate;
+    document.getElementById('r-old-maturity-day').value = getMaturityDay(c) || "";
 
     document.getElementById('r-display-id').innerText = `契約 #${c.id}`;
     document.getElementById('r-display-detail').innerText = `原到期日：${endDate} | 原本金：${c.amount} 萬元 | 原利率：${c.rate}%`;
@@ -2118,12 +2236,13 @@
       document.getElementById('r-calc-amount-display').style.color = "var(--accent-blue)";
     }
 
-    // 新約到期日預覽：錨定原到期日，不隨週三生效日漂移
+    // 新約到期日預覽：錨定原到期日＋錨點日號（防 2/28 永久漂移），不隨週三生效日漂移
     const oldEnd = document.getElementById('r-old-enddate').value;
     const matEl = document.getElementById('r-new-maturity-display');
     if (matEl && oldEnd) {
       const newTerm = document.getElementById('r-new-term').value;
-      const newMat = addMonthsKeepingDay(oldEnd, (newTerm === "半年") ? 6 : 12);
+      const anchorDay = Number(document.getElementById('r-old-maturity-day').value) || parseLocalDate(oldEnd).getDate();
+      const newMat = addMonthsKeepingDay(oldEnd, (newTerm === "半年") ? 6 : 12, anchorDay);
       matEl.innerHTML = `📌 新約到期日：<span class="num-font fw-bold text-white">${newMat}</span>（錨定原到期日 ${oldEnd}，僅生效日校正為週三）`;
     }
   }
@@ -2162,9 +2281,10 @@
     const newStart = newStartInput.value;
     const userNote = document.getElementById('r-note').value.trim();
 
-    // 到期日錨定：新約到期日＝原到期日＋新期數（日號固定，不隨週三生效日漂移）
+    // 到期日錨定：新約到期日＝原到期日＋新期數（用錨點日號防月底漂移，不隨週三生效日漂移）
     const oldMaturity = getContractEndDate(oldContract);
-    const newMaturity = addMonthsKeepingDay(oldMaturity, (newTerm === "半年") ? 6 : 12);
+    const anchorDay = getMaturityDay(oldContract) || parseLocalDate(oldMaturity).getDate();
+    const newMaturity = addMonthsKeepingDay(oldMaturity, (newTerm === "半年") ? 6 : 12, anchorDay);
 
     let oldStatus = "已期滿續約";
     if (adjust < 0) oldStatus = "部分回金換約";
@@ -2180,6 +2300,7 @@
       rate: newRate,
       startDate: newStart,
       maturityDate: newMaturity,
+      maturityDay: anchorDay,
       status: "合約有效"
     });
 
@@ -2191,6 +2312,17 @@
       oldAmount: oldAmount,
       newAmount: newTotal,
       note: userNote || `契約 #${oldId} 續跑換約 (${adjust < 0 ? '部分回金 ' + Math.abs(adjust) + ' 萬' : (adjust > 0 ? '加碼 ' + adjust + ' 萬' : '原額續約')})`
+    });
+
+    // 利率履歷：即使利率沒變也要留（user 指示 6 留吧）
+    rateLogs.push({
+      id: `RATE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      date: newStart,
+      contractId: newId,
+      contractUid: newUid,
+      oldRate: Number(oldContract.rate),
+      newRate: Number(newRate),
+      note: userNote || `續約換約`
     });
 
     saveData();
@@ -2365,13 +2497,15 @@
     });
 
     const newUid = `C_${newId}_${startDate.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
+    const mergeRate = Number(document.getElementById('m-rate').value);
     contracts.push({
       uid: newUid,
       id: newId,
       term: document.getElementById('m-term').value,
       amount: finalAmount,
-      rate: Number(document.getElementById('m-rate').value),
+      rate: mergeRate,
       startDate: startDate,
+      maturityDay: parseLocalDate(startDate).getDate(),
       mergedFrom: selectedIds.slice(),
       status: "合約有效"
     });
@@ -2385,6 +2519,31 @@
         oldAmount: oldSum,
         newAmount: finalAmount,
         note: userNote || `由舊約 [${selectedIds.join(', ')}] 合併${topup > 0 ? '並加碼 ' + topup + ' 萬' : ''}`
+      });
+    }
+
+    // 利率履歷：每個來源合約各留一筆（即使利率沒變也留）
+    selectedIds.forEach((srcId, idx) => {
+      const src = contracts.find(c => String(c.id) === String(srcId) && c.status === "已合併") || contracts.find(c => String(c.id) === String(srcId));
+      rateLogs.push({
+        id: `RATE-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+        date: startDate,
+        contractId: newId,
+        contractUid: newUid,
+        oldRate: src ? Number(src.rate) : null,
+        newRate: mergeRate,
+        note: userNote || `由 #${srcId} 合併至 #${newId}`
+      });
+    });
+    if (selectedIds.length === 0 && topup > 0) {
+      rateLogs.push({
+        id: `RATE-${Date.now()}-pure-${Math.floor(Math.random() * 1000)}`,
+        date: startDate,
+        contractId: newId,
+        contractUid: newUid,
+        oldRate: null,
+        newRate: mergeRate,
+        note: userNote || `新增加碼`
       });
     }
 
@@ -2468,6 +2627,7 @@
     enforceWednesday(startInput);
     const startDate = startInput.value;
     const amount = Number(document.getElementById('c-amount').value);
+    const newRate = Number(document.getElementById('c-rate').value);
     const newUid = `C_${newId}_${startDate.replace(/-/g, '')}_${Math.random().toString(36).substring(2, 6)}`;
 
     contracts.push({
@@ -2475,8 +2635,9 @@
       id: newId,
       term: document.getElementById('c-term').value,
       amount: amount,
-      rate: Number(document.getElementById('c-rate').value),
+      rate: newRate,
       startDate: startDate,
+      maturityDay: parseLocalDate(startDate).getDate(),
       status: "合約有效"
     });
 
@@ -2488,6 +2649,16 @@
       oldAmount: 0,
       newAmount: amount,
       note: `新簽契約 #${newId} (注資 ${amount} 萬)`
+    });
+
+    rateLogs.push({
+      id: `RATE-${Date.now()}-new-${Math.floor(Math.random() * 1000)}`,
+      date: startDate,
+      contractId: newId,
+      contractUid: newUid,
+      oldRate: null,
+      newRate: newRate,
+      note: `新簽約`
     });
 
     saveData();
@@ -2514,7 +2685,7 @@
 
   function exportData() {
     const todayStr = formatLocalDate(new Date());
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts, topupLogs }, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts, topupLogs, rateLogs }, null, 2));
     const dl = document.createElement('a');
     dl.setAttribute("href", dataStr);
     dl.setAttribute("download", `私募基金完整備份_${todayStr}.json`);
@@ -2532,6 +2703,7 @@
           contracts = imported.contracts;
           payouts = imported.payouts;
           topupLogs = imported.topupLogs || [];
+          rateLogs = imported.rateLogs || [];
           ensureDataIntegrity();
           saveData();
           renderApp();
