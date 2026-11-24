@@ -333,6 +333,7 @@
       <button class="btn btn-action btn-purple-glow" onclick="requireAuth(openMergeModal)">🔀 合約合併與加碼</button>
       <button class="btn btn-action btn-emerald-glow" onclick="requireAuth(openBatchPayoutModal)">💰 登記現金領息</button>
       <button class="btn btn-action" onclick="openPayoutHistoryModal()">📜 領息流水細項</button>
+      <button class="btn btn-action" onclick="openRecycleBinModal()">🗑️ 回收桶</button>
       <button class="btn btn-action" onclick="exportData()">💾 備份 JSON</button>
       <button class="btn btn-action" onclick="requireAuth(() => document.getElementById('file-import').click())">📂 還原備份</button>
       <input type="file" id="file-import" class="d-none" accept=".json" onchange="importData(event)">
@@ -492,7 +493,7 @@
         <span class="text-secondary small">高對比排版、即期金框高亮、支援到期完全回金結案</span>
       </div>
       <div class="form-check form-check-inline m-0">
-        <input class="form-check-input" type="checkbox" id="filter-show-decommissioned" checked onchange="renderApp()">
+        <input class="form-check-input" type="checkbox" id="filter-show-decommissioned" onchange="renderApp()">
         <label class="form-check-label small text-secondary" for="filter-show-decommissioned">
           顯示歷史/已除役合約
         </label>
@@ -513,6 +514,29 @@
           </tr>
         </thead>
         <tbody id="contract-rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="dark-card mb-4 p-0" style="overflow: hidden;">
+    <div class="p-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-color: rgba(255,255,255,0.08) !important;">
+      <div>
+        <h6 class="fw-bold mb-0">⏰ 到期提醒清單</h6>
+        <span class="text-secondary small" id="upcoming-summary">列出未來 30 天內到期的合約</span>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark-fintech align-middle">
+        <thead>
+          <tr>
+            <th>契約序號</th>
+            <th>到期日</th>
+            <th>本金</th>
+            <th>倒數</th>
+            <th>狀態</th>
+          </tr>
+        </thead>
+        <tbody id="upcoming-rows"></tbody>
       </table>
     </div>
   </div>
@@ -917,11 +941,15 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div class="d-flex align-items-center gap-2">
-            <span class="text-secondary small">合約序號篩選：</span>
-            <select id="history-filter-contract" class="form-select form-select-sm" style="width: 140px;" onchange="renderPayoutHistoryTable()">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-secondary small">合約序號：</span>
+            <select id="history-filter-contract" class="form-select form-select-sm" style="width: 120px;" onchange="renderPayoutHistoryTable()">
               <option value="ALL">全部契約</option>
+            </select>
+            <span class="text-secondary small">月份：</span>
+            <select id="history-filter-month" class="form-select form-select-sm" style="width: 120px;" onchange="renderPayoutHistoryTable()">
+              <option value="ALL">全部月份</option>
             </select>
           </div>
           <div class="small text-secondary" id="history-summary-stats">共 0 筆入帳，合計 0 元</div>
@@ -940,6 +968,64 @@
             </thead>
             <tbody id="history-table-rows"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 回收桶 -->
+<div class="modal fade" id="modalRecycleBin" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title fw-bold">🗑️ 回收桶</h5>
+          <p class="text-secondary small mb-0 mt-1" id="recycle-summary">共 0 筆已刪除紀錄</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div style="max-height: 380px; overflow-y: auto;">
+          <table class="table table-dark-fintech align-middle">
+            <thead>
+              <tr>
+                <th>刪除日期</th>
+                <th>類型</th>
+                <th>說明</th>
+                <th class="text-end">操作</th>
+              </tr>
+            </thead>
+            <tbody id="recycle-table-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 還原備份預覽確認 -->
+<div class="modal fade" id="modalImportPreview" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border: 2px solid var(--accent-amber);">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title fw-bold" style="color: var(--accent-amber);">⚠️ 請確認還原資料</h5>
+          <p class="text-secondary small mb-0 mt-1">還原會「覆蓋目前雲端所有資料」，請先核對下列內容</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="p-3 rounded-3" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15);">
+          <div class="d-flex justify-content-between py-1"><span class="text-secondary">合約筆數</span><span class="num-font fw-bold text-white" id="import-preview-contracts">-</span></div>
+          <div class="d-flex justify-content-between py-1"><span class="text-secondary">領息筆數</span><span class="num-font fw-bold text-white" id="import-preview-payouts">-</span></div>
+          <div class="d-flex justify-content-between py-1"><span class="text-secondary">領息日期範圍</span><span class="num-font text-white" id="import-preview-range">-</span></div>
+          <div class="d-flex justify-content-between py-1"><span class="text-secondary">檔案名稱</span><span class="small text-white" id="import-preview-filename">-</span></div>
+        </div>
+        <div class="small text-secondary mt-3">目前雲端：合約 <span id="import-current-contracts" class="num-font text-white">-</span> 筆 / 領息 <span id="import-current-payouts" class="num-font text-white">-</span> 筆（將被全數覆蓋）</div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-action w-50 py-2" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-action btn-blue-glow w-50 py-2" onclick="confirmImport()">✅ 確認覆蓋還原</button>
         </div>
       </div>
     </div>
@@ -1013,6 +1099,7 @@
   let payouts = [];
   let topupLogs = [];
   let rateLogs = [];
+  let recycleBin = [];
   let dbRef = null;
   let chartPayoutsInstance = null;
   let chartTermsInstance = null;
@@ -1026,6 +1113,9 @@
   let modalConfirmPayoutInstance = null;
   let modalReturnCapitalInstance = null;
   let modalAuthLoginInstance = null;
+  let modalRecycleBinInstance = null;
+  let modalImportPreviewInstance = null;
+  let pendingImportData = null;
   let pendingPayoutRecords = [];
 
   function formatLocalDate(date = new Date()) {
@@ -1136,6 +1226,7 @@
   function ensureDataIntegrity() {
     let modified = false;
     if (!Array.isArray(rateLogs)) rateLogs = [];
+    if (!Array.isArray(recycleBin)) recycleBin = [];
 
     contracts.forEach(c => {
       if (!c.uid) {
@@ -1234,6 +1325,8 @@
     modalConfirmPayoutInstance = new bootstrap.Modal(document.getElementById('modalConfirmPayout'));
     modalReturnCapitalInstance = new bootstrap.Modal(document.getElementById('modalReturnCapital'));
     modalAuthLoginInstance = new bootstrap.Modal(document.getElementById('modalAuthLogin'));
+    modalRecycleBinInstance = new bootstrap.Modal(document.getElementById('modalRecycleBin'));
+    modalImportPreviewInstance = new bootstrap.Modal(document.getElementById('modalImportPreview'));
 
     try {
       if (!firebase.apps.length) {
@@ -1268,13 +1361,15 @@
           payouts = JSON.parse(JSON.stringify(DEFAULT_PAYOUTS));
           topupLogs = JSON.parse(JSON.stringify(DEFAULT_TOPUPS));
           rateLogs = [];
+          recycleBin = [];
           
           if (currentUser) {
             dbRef.set({
               contracts: contracts,
               payouts: payouts,
               topupLogs: topupLogs,
-              rateLogs: rateLogs
+              rateLogs: rateLogs,
+              recycleBin: recycleBin
             });
           }
           renderApp();
@@ -1283,6 +1378,7 @@
           payouts = cloudData.payouts || [];
           topupLogs = cloudData.topupLogs || [];
           rateLogs = cloudData.rateLogs || [];
+          recycleBin = cloudData.recycleBin || [];
           ensureDataIntegrity();
           renderApp();
         }
@@ -1307,7 +1403,8 @@
         contracts: contracts,
         payouts: payouts,
         topupLogs: topupLogs,
-        rateLogs: rateLogs
+        rateLogs: rateLogs,
+        recycleBin: recycleBin
       }).catch(err => {
         alert("雲端寫入失敗：" + err.message);
       });
@@ -1508,7 +1605,7 @@
     // ==========================================
     // 渲染主監控表 (8欄精簡版，支援手機首欄鎖定)
     // ==========================================
-    const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : true;
+    const showDecommissioned = document.getElementById('filter-show-decommissioned') ? document.getElementById('filter-show-decommissioned').checked : false;
     const tbody = document.getElementById('contract-rows');
     tbody.innerHTML = "";
 
@@ -1650,7 +1747,106 @@
 
     renderTopupLogsTable();
     renderRateLogsTable();
+    renderUpcomingList();
     renderCharts(activeContracts);
+  }
+
+  function renderUpcomingList() {
+    const tbody = document.getElementById('upcoming-rows');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const today = new Date(); today.setHours(0,0,0,0);
+    const list = [];
+    contracts.forEach(c => {
+      if (c.status !== "合約有效") return;
+      const endDate = getContractEndDate(c);
+      const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
+      const daysLeft = Math.ceil(diffTime / (1000*60*60*24));
+      if (daysLeft <= 30) {
+        list.push({ c, endDate, daysLeft });
+      }
+    });
+    list.sort((a,b) => a.daysLeft - b.daysLeft);
+    document.getElementById('upcoming-summary').innerText = list.length
+      ? `列出未來 30 天內到期的合約（共 ${list.length} 筆）`
+      : '未來 30 天內無合約到期';
+    if (list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary py-3">👍 未來 30 天內沒有合約到期</td></tr>`;
+      return;
+    }
+    list.forEach(({ c, endDate, daysLeft }) => {
+      const tr = document.createElement('tr');
+      const expired = daysLeft <= 0;
+      tr.innerHTML = `
+        <td><span class="num-font fw-bold" style="color: var(--accent-blue);">#${c.id}</span> <span class="status-pill pill-neutral" style="font-size:0.65rem;padding:1px 6px;">${c.term}</span></td>
+        <td class="num-font">${endDate}</td>
+        <td class="num-font fw-bold">${c.amount} 萬</td>
+        <td class="num-font fw-bold" style="color: ${expired ? 'var(--accent-rose)' : 'var(--accent-amber)'};">${expired ? '已期滿 ' + Math.abs(daysLeft) + ' 天' : daysLeft + ' 天'}</td>
+        <td>${expired ? '<span class="status-pill pill-alert"><span class="status-dot"></span>期滿待換約</span>' : (daysLeft <= 7 ? '<span class="status-pill pill-warning"><span class="status-dot"></span>🔔 即期</span>' : '<span class="status-pill pill-neutral"><span class="status-dot"></span>正常</span>')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addToRecycleBin(type, record, description) {
+    recycleBin.push({
+      id: `RB-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+      type: type,
+      record: JSON.parse(JSON.stringify(record)),
+      description: description,
+      deletedAt: formatLocalDate(new Date())
+    });
+    if (recycleBin.length > 100) recycleBin.splice(0, recycleBin.length - 100);
+  }
+
+  function openRecycleBinModal() {
+    renderRecycleBinTable();
+    modalRecycleBinInstance.show();
+  }
+
+  function renderRecycleBinTable() {
+    const tbody = document.getElementById('recycle-table-rows');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    document.getElementById('recycle-summary').innerText = `共 ${recycleBin.length} 筆已刪除紀錄（最多保留 100 筆）`;
+    if (recycleBin.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary py-3">回收桶是空的。</td></tr>`;
+      return;
+    }
+    recycleBin.slice().reverse().forEach((item, revIdx) => {
+      const actualIdx = recycleBin.length - 1 - revIdx;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="num-font text-secondary">${item.deletedAt}</td>
+        <td><span class="status-pill pill-neutral">${item.type}</span></td>
+        <td class="small">${item.description}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-action me-1" style="color:var(--accent-emerald);font-size:0.72rem;padding:2px 7px;" onclick="requireAuth(() => restoreFromRecycleBin(${actualIdx}))">還原</button>
+          <button class="btn btn-sm btn-outline-danger" style="font-size:0.72rem;padding:2px 7px;" onclick="requireAuth(() => purgeRecycleBin(${actualIdx}))">清除</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function restoreFromRecycleBin(idx) {
+    const item = recycleBin[idx];
+    if (!item) return;
+    if (item.type === '合約') contracts.push(item.record);
+    else if (item.type === '領息') payouts.push(item.record);
+    else if (item.type === '資本異動') topupLogs.push(item.record);
+    else if (item.type === '利率履歷') rateLogs.push(item.record);
+    recycleBin.splice(idx, 1);
+    saveData();
+    renderApp();
+    alert(`✅ 已還原：${item.description}`);
+  }
+
+  function purgeRecycleBin(idx) {
+    if (!confirm("確定要永久清除這筆回收紀錄嗎？清除後無法復原。")) return;
+    recycleBin.splice(idx, 1);
+    saveData();
+    renderRecycleBinTable();
   }
 
   function renderTopupLogsTable() {
@@ -1685,6 +1881,7 @@
 
   function deleteTopupLog(idx) {
     if (confirm("確定要刪除這筆資本異動紀錄嗎？(這不會影響現有合約本金)")) {
+      addToRecycleBin('資本異動', topupLogs[idx], `資本異動 #${topupLogs[idx].contractId} ${topupLogs[idx].topupAmount}萬`);
       topupLogs.splice(idx, 1);
       saveData();
       renderTopupLogsTable();
@@ -1723,6 +1920,7 @@
 
   function deleteRateLog(idx) {
     if (confirm("確定要刪除這筆利率履歷嗎？(不會影響現有合約利率)")) {
+      addToRecycleBin('利率履歷', rateLogs[idx], `利率履歷 #${rateLogs[idx].contractId} ${rateLogs[idx].oldRate}%→${rateLogs[idx].newRate}%`);
       rateLogs.splice(idx, 1);
       saveData();
       renderRateLogsTable();
@@ -2580,18 +2778,34 @@
       filterSelect.appendChild(opt);
     });
 
+    const monthSelect = document.getElementById('history-filter-month');
+    const selectedMonth = monthSelect.value;
+    monthSelect.innerHTML = `<option value="ALL">全部月份</option>`;
+    const uniqueMonths = [...new Set(payouts.map(p => (p.date||'').substring(0,7)).filter(Boolean))].sort().reverse();
+    uniqueMonths.forEach(ym => {
+      const opt = document.createElement('option');
+      opt.value = ym;
+      opt.textContent = ym;
+      monthSelect.appendChild(opt);
+    });
+    if (uniqueMonths.includes(selectedMonth)) monthSelect.value = selectedMonth;
+
     renderPayoutHistoryTable();
     modalPayoutHistoryInstance.show();
   }
 
   function renderPayoutHistoryTable() {
     const filterId = document.getElementById('history-filter-contract').value;
+    const filterMonth = document.getElementById('history-filter-month').value;
     const tbody = document.getElementById('history-table-rows');
     tbody.innerHTML = "";
 
     let filtered = payouts.slice();
     if (filterId !== "ALL") {
       filtered = filtered.filter(p => String(p.contractId) === filterId);
+    }
+    if (filterMonth !== "ALL") {
+      filtered = filtered.filter(p => (p.date||'').startsWith(filterMonth));
     }
 
     filtered.sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
@@ -2622,6 +2836,7 @@
 
   function deletePayoutRecord(origIdx) {
     if (confirm("確定要撤銷這筆領息紀錄嗎？雲端資料庫將即時重算。")) {
+      addToRecycleBin('領息', payouts[origIdx], `領息 #${payouts[origIdx].contractId} ${payouts[origIdx].date} ${payouts[origIdx].amount}元`);
       payouts.splice(origIdx, 1);
       saveData();
       renderPayoutHistoryTable();
@@ -2692,6 +2907,7 @@
       if (!confirm(`確認撤回刪除此筆合約？(此操作僅限誤登撤回)`)) return;
     }
 
+    addToRecycleBin('合約', c, `合約 #${c.id} ${c.amount}萬 ${c.startDate}`);
     contracts.splice(idx, 1);
     saveData();
     renderApp();
@@ -2699,7 +2915,7 @@
 
   function exportData() {
     const todayStr = formatLocalDate(new Date());
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts, topupLogs, rateLogs }, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ contracts, payouts, topupLogs, rateLogs, recycleBin }, null, 2));
     const dl = document.createElement('a');
     dl.setAttribute("href", dataStr);
     dl.setAttribute("download", `私募基金完整備份_${todayStr}.json`);
@@ -2714,14 +2930,17 @@
       try {
         const imported = JSON.parse(e.target.result);
         if (imported.contracts && imported.payouts) {
-          contracts = imported.contracts;
-          payouts = imported.payouts;
-          topupLogs = imported.topupLogs || [];
-          rateLogs = imported.rateLogs || [];
-          ensureDataIntegrity();
-          saveData();
-          renderApp();
-          alert("資料還原成功，並已全數同步至雲端資料庫！");
+          pendingImportData = imported;
+          const dates = imported.payouts.map(p => p.date).filter(Boolean).sort();
+          document.getElementById('import-preview-contracts').innerText = imported.contracts.length + ' 筆';
+          document.getElementById('import-preview-payouts').innerText = imported.payouts.length + ' 筆';
+          document.getElementById('import-preview-range').innerText = dates.length ? dates[0] + ' ~ ' + dates[dates.length-1] : '-';
+          document.getElementById('import-preview-filename').innerText = file.name;
+          document.getElementById('import-current-contracts').innerText = contracts.length;
+          document.getElementById('import-current-payouts').innerText = payouts.length;
+          modalImportPreviewInstance.show();
+        } else {
+          alert("還原失敗：JSON 缺少 contracts 或 payouts 欄位。");
         }
       } catch (err) {
         alert("還原失敗：JSON 格式無效。");
@@ -2730,6 +2949,22 @@
       }
     };
     reader.readAsText(file);
+  }
+
+  function confirmImport() {
+    if (!pendingImportData) return;
+    const imported = pendingImportData;
+    contracts = imported.contracts;
+    payouts = imported.payouts;
+    topupLogs = imported.topupLogs || [];
+    rateLogs = imported.rateLogs || [];
+    recycleBin = imported.recycleBin || [];
+    pendingImportData = null;
+    ensureDataIntegrity();
+    saveData();
+    renderApp();
+    modalImportPreviewInstance.hide();
+    alert("資料還原成功，並已全數同步至雲端資料庫！");
   }
 
   window.onload = initData;
