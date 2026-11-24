@@ -966,7 +966,7 @@
 
   const DEFAULT_CONTRACTS = [
     { uid: "C_1_SEED", id: "1", term: "半年", amount: 120, rate: 1.2, startDate: "2026-04-08", status: "合約有效" },
-    { uid: "C_2_SEED", id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-29", status: "合約有效" },
+    { uid: "C_2_SEED", id: "2", term: "半年", amount: 30, rate: 1.2, startDate: "2026-04-22", status: "合約有效" },
     { uid: "C_3_SEED", id: "3", term: "一年", amount: 150, rate: 1.8, startDate: "2026-05-27", status: "合約有效" },
     { uid: "C_4_SEED", id: "4", term: "半年", amount: 100, rate: 1.4, startDate: "2026-06-17", status: "合約有效" },
     { uid: "C_5_SEED", id: "5", term: "一年", amount: 70, rate: 1.8, startDate: "2026-07-01", status: "合約有效" },
@@ -1150,6 +1150,20 @@
           modified = true;
         }
       }
+
+      // 一次性修正（2026-11-24）：#2 舊約到期日應為 10/22（原誤登 10/29）、
+      // 換約生效日應為 10/28（原誤登 11/04），沒有跨月。以 uid 精確匹配，改過就不再執行（冪等）。
+      if (c.uid === 'C_2_20260429_dbs1' && c.startDate === '2026-04-29') {
+        c.startDate = '2026-04-22';
+        c.maturityDay = 22;
+        modified = true;
+      }
+      if (c.uid === 'C_2_20261104_sgh1' && c.startDate === '2026-11-04') {
+        c.startDate = '2026-10-28';
+        c.maturityDate = '2027-04-22';
+        c.maturityDay = 22;
+        modified = true;
+      }
     });
 
     topupLogs.forEach(log => {
@@ -1232,6 +1246,8 @@
         if (user) {
           authBtn.innerHTML = `🔓 管理員已解鎖 (${user.email.split('@')[0]})`;
           authBtn.className = "btn btn-action py-1 px-3 ms-1 text-success border-success";
+          // 登入後再跑一次資料完整性檢查，讓一次性修正（如 #2 到期日）能即時寫回雲端
+          ensureDataIntegrity();
         } else {
           authBtn.innerHTML = `🔒 訪客模式 (點擊解鎖)`;
           authBtn.className = "btn btn-action py-1 px-3 ms-1 text-warning border-warning";
@@ -1506,7 +1522,6 @@
       const diffTime = parseLocalDate(endDate).getTime() - today.getTime();
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const monthlyGain = Math.round(c.amount * 10000 * (c.rate / 100));
-      const maturityAnchorNote = c.maturityDate ? '<div class="small mt-1" style="font-size: 0.68rem; color: var(--accent-amber);">📌 到期日錨定原日期</div>' : '';
 
       const isNegotiationPeriod = daysLeft <= 30 && daysLeft > 0 && c.status === "合約有效";
       const isExpired = daysLeft <= 0 && c.status === "合約有效";
@@ -1612,7 +1627,6 @@
         <td>
           <div class="num-font" style="font-size: 0.85rem; color: var(--text-main);">${c.startDate} <span class="text-secondary">➔</span> ${endDate}</div>
           <div class="text-secondary small mt-1" style="font-size: 0.72rem;">週三生效：<span class="num-font text-white">${nextWed}</span></div>
-          ${maturityAnchorNote}
         </td>
 
         <td>${countdownPill}</td>
